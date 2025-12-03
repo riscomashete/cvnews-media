@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,10 +6,17 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Automatically redirect to admin dashboard when user is authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/admin');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,7 +25,8 @@ const Login: React.FC = () => {
 
     try {
       await login(email, password);
-      navigate('/admin');
+      // We do not set loading(false) here because we want to show 
+      // the spinner until the redirect in useEffect happens.
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/invalid-credential') {
@@ -28,8 +36,7 @@ const Login: React.FC = () => {
       } else {
         setError("Login failed. Please check your connection.");
       }
-    } finally {
-      setLoading(false);
+      setLoading(false); // Only stop loading if there was an error
     }
   };
 
