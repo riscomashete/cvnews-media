@@ -72,7 +72,12 @@ const Home: React.FC = () => {
       {featured && (
         <section className="bg-black text-white relative">
           <div className="absolute inset-0 opacity-40">
-             <img src={featured.imageUrl} className="w-full h-full object-cover" alt="Featured background" />
+             <img 
+               src={featured.imageUrl} 
+               className="w-full h-full object-cover" 
+               alt="Featured background" 
+               loading="lazy"
+             />
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
           

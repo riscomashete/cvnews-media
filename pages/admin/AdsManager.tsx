@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../../services/db';
 import { Advertisement } from '../../types';
@@ -67,35 +68,45 @@ const AdsManager: React.FC = () => {
 
     const finalType = tab === 'text' ? 'announcement' : type;
 
-    // Use spread syntax to conditionally add fields. 
-    // Firestore crashes on 'undefined', so we must omit the key entirely if not used.
-    await db.createAd({
-      title,
-      type: finalType,
-      linkUrl,
-      active: true,
-      ...(tab === 'media' ? { mediaUrl } : {}),
-      ...(tab === 'text' ? { content } : {})
-    });
+    try {
+      // Use spread syntax to conditionally add fields. 
+      // Firestore crashes on 'undefined', so we must omit the key entirely if not used.
+      await db.createAd({
+        title,
+        type: finalType,
+        linkUrl,
+        active: true,
+        ...(tab === 'media' ? { mediaUrl } : {}),
+        ...(tab === 'text' ? { content } : {})
+      });
 
-    // Reset Form
-    setTitle('');
-    setContent('');
-    setLinkUrl('');
-    setMediaUrl('');
-    loadAds();
+      // Reset Form
+      setTitle('');
+      setContent('');
+      setLinkUrl('');
+      setMediaUrl('');
+      loadAds();
+    } catch (error) {
+      alert("Failed to create ad");
+    }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Delete this item?")) {
+    if (!window.confirm("Delete this item?")) return;
+    try {
       await db.deleteAd(id);
-      loadAds();
+      // Update local state directly
+      setAds(prev => prev.filter(a => a.id !== id));
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete item.");
     }
   };
 
   const handleToggle = async (ad: Advertisement) => {
     await db.toggleAdStatus(ad.id, ad.active);
-    loadAds();
+    // Local update for immediate feedback
+    setAds(prev => prev.map(a => a.id === ad.id ? { ...a, active: !a.active } : a));
   };
 
   if (loading) return <div className="p-8 text-center">Loading ads...</div>;

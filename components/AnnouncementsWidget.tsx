@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { Advertisement } from '../types';
@@ -65,6 +66,7 @@ const AnnouncementsWidget: React.FC = () => {
                   src={currentMedia.mediaUrl} 
                   alt={currentMedia.title} 
                   className="w-full h-full object-contain relative z-10" 
+                  loading="lazy"
                 />
                 
                 {currentMedia.linkUrl && (

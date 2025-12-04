@@ -46,7 +46,9 @@ export const createChatSession = (siteContext: string = ''): Chat | null => {
     3. When recommending an article, ALWAYS include the title and the direct link in this format: '/article/{id}'.
     4. If the user asks about CVNEWS (the company), use the "COMPANY PROFILE" section.
     5. Keep responses concise, professional, and friendly.
-    6. If you don't know the answer based on the context, politely admit it and offer to help with something else.`;
+    6. If you don't know the answer based on the context, politely admit it and offer to help with something else.
+    7. Pay attention to the "Published" date of articles. If a user asks for "latest news", prioritize articles with dates closest to the "Current Date" in the context.
+    8. You can identify and list articles by specific authors if requested.`;
 
     const fullInstruction = siteContext 
       ? `${baseInstruction}\n\n=== SITE CONTEXT ===\n${siteContext}` 
@@ -104,20 +106,30 @@ export const proofreadContent = async (content: string): Promise<string> => {
   
   try {
     const ai = new GoogleGenAI({ apiKey });
-    // Use Pro for complex editing and nuance
+    // Use Flash for speed and reliability with basic text tasks
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview", 
-      contents: `You are a senior newspaper editor. Proofread and polish the following HTML article content. 
-      - Fix grammar, spelling, and punctuation errors.
-      - Improve flow, clarity, and readability without changing the original meaning.
-      - IMPORTANT: Maintain the existing HTML structure and tags absolutely intact. Do not strip tags.
-      - Do not wrap the output in markdown code blocks.
+      model: "gemini-2.5-flash", 
+      contents: `Act as a senior copy editor. Proofread and polish the following HTML text.
       
-      Content:
+      Rules:
+      1. Correct all grammar, spelling, and punctuation errors.
+      2. Improve sentence flow and clarity while keeping the original tone.
+      3. HTML SAFETY: You must preserve the input HTML tags exactly. Do not strip <b>, <i>, <p>, etc.
+      4. OUTPUT FORMAT: Return ONLY the corrected HTML string. Do NOT wrap it in markdown (no \`\`\`).
+      
+      Content to process:
       ${content}`
     });
     
-    return response.text || content;
+    let cleanText = response.text || content;
+
+    // Sanitize common Markdown wrapper issues
+    cleanText = cleanText.trim();
+    if (cleanText.startsWith("```")) {
+      cleanText = cleanText.replace(/^```(?:html)?/i, "").replace(/```$/, "").trim();
+    }
+    
+    return cleanText;
   } catch (error) {
     console.error("Gemini Proofread Error:", error);
     throw error;
@@ -167,7 +179,7 @@ export const generateCoverImage = async (prompt: string): Promise<string | null>
       config: {
         imageConfig: {
           aspectRatio: "16:9",
-          imageSize: "1K"
+          // imageSize is only supported for gemini-3-pro-image-preview
         }
       },
     });

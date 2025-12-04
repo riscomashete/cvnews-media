@@ -9,13 +9,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialValue = '', onCh
   const contentRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
-  // Initialize content
+  // Initialize and Update content
   useEffect(() => {
-    if (contentRef.current && initialValue) {
-      // Only set initial HTML if it's empty to prevent cursor jumping on re-renders
-      if (contentRef.current.innerHTML === '') {
-        contentRef.current.innerHTML = initialValue;
-      }
+    // We update the innerHTML if the incoming initialValue is different from current content.
+    // This allows external updates (like AI Proofreading) to overwrite the editor state,
+    // while normal typing (which updates DOM first) won't trigger this because DOM == Value.
+    if (contentRef.current && initialValue !== contentRef.current.innerHTML) {
+      contentRef.current.innerHTML = initialValue;
     }
   }, [initialValue]);
 

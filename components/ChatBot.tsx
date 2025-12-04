@@ -32,6 +32,9 @@ const ChatBot: React.FC = () => {
 
         // 2. Build Context String
         let context = `
+        === SYSTEM INFORMATION ===
+        Current Date: ${new Date().toDateString()}
+
         === COMPANY PROFILE ===
         Name: CVNEWS MEDIA CC
         Description: Premier Namibian SME media company bridging the gap between small businesses and the economy.
@@ -43,15 +46,20 @@ const ChatBot: React.FC = () => {
         === AVAILABLE NEWS ARTICLES (LATEST FIRST) ===
         `;
 
-        // Add top 30 articles to context (preventing token overflow if list is huge)
-        published.slice(0, 30).forEach(a => {
+        // Add top 100 articles to context (utilizing Gemini's large context window)
+        // We include explicit fields for Date and Author to help the AI answer specific queries.
+        published.slice(0, 100).forEach(a => {
           context += `
-          - ID: ${a.id}
-            Title: "${a.title}"
-            Category: ${a.category}
-            Author: ${a.author}
-            Date: ${new Date(a.createdAt).toDateString()}
-            Summary: ${a.excerpt}
+          --------------------------------------------------
+          ID: ${a.id}
+          Title: "${a.title}"
+          Category: ${a.category}
+          Author: ${a.author}
+          Published: ${new Date(a.createdAt).toDateString()}
+          Summary: ${a.excerpt}
+          ${a.keywords ? `Keywords: ${a.keywords}` : ''}
+          Link: /article/${a.id}
+          --------------------------------------------------
           `;
         });
 

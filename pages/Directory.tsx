@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { Business } from '../types';
@@ -84,7 +85,12 @@ const Directory: React.FC = () => {
               <div key={b.id} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow hover:shadow-lg transition p-6 flex flex-col">
                 <div className="h-24 flex items-center mb-4">
                   {b.logoUrl ? (
-                    <img src={b.logoUrl} alt={b.name} className="max-h-full max-w-[150px] object-contain" />
+                    <img 
+                      src={b.logoUrl} 
+                      alt={b.name} 
+                      className="max-h-full max-w-[150px] object-contain" 
+                      loading="lazy"
+                    />
                   ) : (
                     <div className="w-16 h-16 bg-brand-red text-white flex items-center justify-center font-bold text-xl rounded">
                       {b.name.charAt(0)}

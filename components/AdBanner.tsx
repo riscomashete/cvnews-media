@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { Advertisement } from '../types';
@@ -57,6 +58,7 @@ const AdContent: React.FC<{ ad: Advertisement }> = ({ ad }) => {
       src={ad.mediaUrl} 
       alt={ad.title} 
       className="max-w-full h-auto object-contain shadow-md border border-gray-200 dark:border-gray-700 max-h-[300px]"
+      loading="lazy"
     />
   );
 };

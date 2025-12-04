@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../../services/db';
 import { Business } from '../../types';
@@ -26,9 +27,13 @@ const DirectoryManager: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Delete this listing?")) {
+    if (!confirm("Delete this listing?")) return;
+    try {
       await db.deleteBusiness(id);
-      load();
+      setBusinesses(prev => prev.filter(b => b.id !== id));
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete listing.");
     }
   };
 

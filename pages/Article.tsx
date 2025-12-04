@@ -119,7 +119,12 @@ const Article: React.FC = () => {
     <article className="pb-20 bg-white dark:bg-gray-900">
       {/* Header Image */}
       <div className="h-[50vh] w-full relative">
-        <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover" />
+        <img 
+          src={article.imageUrl} 
+          alt={article.title} 
+          className="w-full h-full object-cover" 
+          loading="lazy"
+        />
         <div className="absolute inset-0 bg-black opacity-30"></div>
       </div>
 

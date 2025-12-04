@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import RichTextEditor from '../../components/RichTextEditor';
@@ -85,6 +86,37 @@ const ArticleEditor: React.FC = () => {
     }
   }, [id, navigate, user]);
 
+  // Utility to compress images to ensure they fit in Firestore (1MB limit)
+  const compressImage = (source: string, maxWidth = 800, quality = 0.6): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = source;
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+           ctx.drawImage(img, 0, 0, width, height);
+           // Convert to JPEG with reduced quality
+           resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+           resolve(source); // Fallback
+        }
+      };
+      img.onerror = () => resolve(source); // Fallback if loading fails
+    });
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -96,6 +128,25 @@ const ArticleEditor: React.FC = () => {
       if (!id) {
         dataToSave.published = false;
       }
+    }
+
+    // Safety check: Compress image if it looks too big (Base64 overhead)
+    // 1MB limit = ~1,048,576 bytes. We target < 800KB to be safe.
+    if (dataToSave.imageUrl.startsWith('data:') && dataToSave.imageUrl.length > 800000) {
+       console.log("Image too large, attempting aggressive compression...");
+       try {
+         // Compress aggressively: Max width 600, 50% quality
+         dataToSave.imageUrl = await compressImage(dataToSave.imageUrl, 600, 0.5);
+       } catch (e) {
+         console.warn("Compression failed", e);
+       }
+    }
+    
+    // Hard limit check before sending to DB
+    if (dataToSave.imageUrl.length > 1040000) {
+        alert("The image is too large for the database limit (1MB). Please use a smaller image or an external URL.");
+        setSaving(false);
+        return;
     }
 
     try {
@@ -173,7 +224,9 @@ const ArticleEditor: React.FC = () => {
     const b64Image = await generateCoverImage(promptText);
     
     if (b64Image) {
-      setFormData(prev => ({ ...prev, imageUrl: b64Image }));
+      // Compress the generated PNG (which is often huge) to a reasonable JPEG
+      const compressed = await compressImage(b64Image);
+      setFormData(prev => ({ ...prev, imageUrl: compressed }));
     } else {
       alert("Could not generate image. Please try again.");
     }
@@ -188,46 +241,23 @@ const ArticleEditor: React.FC = () => {
     setUploadingImage(true);
     setUploadError(null);
 
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          // Create canvas to resize
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
-          const scaleSize = MAX_WIDTH / img.width;
-          
-          // Only resize if width > MAX_WIDTH
-          if (scaleSize < 1) {
-             canvas.width = MAX_WIDTH;
-             canvas.height = img.height * scaleSize;
-          } else {
-             canvas.width = img.width;
-             canvas.height = img.height;
-          }
-
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          // Convert to Base64 string (JPEG 0.7 quality)
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-          
-          setFormData(prev => ({ ...prev, imageUrl: dataUrl }));
-          setUploadingImage(false);
-        };
-      };
-      reader.onerror = () => {
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const rawBase64 = event.target?.result as string;
+        try {
+          const compressed = await compressImage(rawBase64);
+          setFormData(prev => ({ ...prev, imageUrl: compressed }));
+        } catch (err) {
+          console.error("Compression error", err);
+          setUploadError("Failed to process image.");
+        }
+        setUploadingImage(false);
+    };
+    reader.onerror = () => {
         setUploadError("Failed to read file.");
         setUploadingImage(false);
-      };
-    } catch (error: any) {
-      console.error("Error processing image:", error);
-      setUploadError("Failed to process image.");
-      setUploadingImage(false);
-    }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
