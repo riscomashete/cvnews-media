@@ -7,10 +7,12 @@ import {
   updateDoc, 
   deleteDoc, 
   query, 
-  orderBy 
+  orderBy,
+  where,
+  limit
 } from 'firebase/firestore';
 import { db as firestore } from './firebase'; 
-import { Article, ContactMessage, Advertisement } from '../types';
+import { Article, ContactMessage, Advertisement, Business } from '../types';
 
 const COLLECTION_NAME = 'articles';
 
@@ -55,6 +57,25 @@ export const db = {
     } catch (error) {
       console.error("Error getting article by ID:", error);
       return undefined;
+    }
+  },
+
+  getRelatedArticles: async (currentId: string, category: string): Promise<Article[]> => {
+    try {
+      // In a real app with proper indexing, we would use a complex query.
+      // For simplicity and robustness without requiring manual index creation in console:
+      // We will fetch recent articles and filter in memory.
+      const q = query(collection(firestore, COLLECTION_NAME), orderBy('createdAt', 'desc'), limit(20));
+      const snapshot = await getDocs(q);
+      
+      const all = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
+      
+      return all
+        .filter(a => a.id !== currentId && a.category === category && a.published)
+        .slice(0, 3);
+    } catch (error) {
+      console.error("Error fetching related articles", error);
+      return [];
     }
   },
 
@@ -241,6 +262,55 @@ export const db = {
       if (error.code === 'permission-denied') {
          alert("Permission denied to update cloud ad.");
       }
+      throw error;
+    }
+  },
+
+  // === BUSINESS DIRECTORY ===
+  getBusinesses: async (): Promise<Business[]> => {
+    try {
+      const q = query(collection(firestore, 'businesses'), orderBy('name', 'asc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
+    } catch (error: any) {
+      console.error("Error fetching businesses:", error);
+      if (error.code === 'permission-denied') {
+        const local = localStorage.getItem('local_businesses');
+        return local ? JSON.parse(local) : [];
+      }
+      return [];
+    }
+  },
+
+  createBusiness: async (business: Omit<Business, 'id' | 'createdAt'>): Promise<void> => {
+    try {
+      await addDoc(collection(firestore, 'businesses'), {
+        ...business,
+        createdAt: Date.now()
+      });
+    } catch (error: any) {
+      if (error.code === 'permission-denied') {
+        const local = JSON.parse(localStorage.getItem('local_businesses') || '[]');
+        local.push({ id: 'local_' + Date.now(), ...business, createdAt: Date.now() });
+        localStorage.setItem('local_businesses', JSON.stringify(local));
+        alert("Saved to local storage (Offline Mode)");
+        return;
+      }
+      throw error;
+    }
+  },
+
+  deleteBusiness: async (id: string): Promise<void> => {
+    try {
+      if (id.startsWith('local_')) {
+        const local = JSON.parse(localStorage.getItem('local_businesses') || '[]');
+        const filtered = local.filter((b: Business) => b.id !== id);
+        localStorage.setItem('local_businesses', JSON.stringify(filtered));
+        return;
+      }
+      await deleteDoc(doc(firestore, 'businesses', id));
+    } catch (error) {
+      console.error(error);
       throw error;
     }
   }

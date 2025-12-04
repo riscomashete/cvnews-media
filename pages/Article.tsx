@@ -1,18 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { db } from '../services/db';
 import { Article as ArticleType } from '../types';
+import ArticleCard from '../components/ArticleCard';
 
 const Article: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [article, setArticle] = useState<ArticleType | null>(null);
+  const [related, setRelated] = useState<ArticleType[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true);
+      setArticle(null);
+      setRelated([]);
+      
       if (id) {
         const data = await db.getArticleById(id);
-        setArticle(data || null);
+        if (data) {
+          setArticle(data);
+          // Fetch related articles once the main article is loaded
+          const relatedData = await db.getRelatedArticles(data.id, data.category);
+          setRelated(relatedData);
+        }
       }
       setLoading(false);
     };
@@ -118,6 +129,20 @@ const Article: React.FC = () => {
           <div className="prose prose-lg dark:prose-invert max-w-none font-serif leading-loose" 
                dangerouslySetInnerHTML={{ __html: article.content }} />
         </div>
+
+        {/* RELATED ARTICLES */}
+        {related.length > 0 && (
+          <div className="max-w-4xl mx-auto mt-16">
+            <h3 className="text-2xl font-bold mb-6 dark:text-white border-l-4 border-brand-red pl-4">
+              More in {article.category}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {related.map(r => (
+                 <ArticleCard key={r.id} article={r} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </article>
   );

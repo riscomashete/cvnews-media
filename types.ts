@@ -37,6 +37,18 @@ export interface Advertisement {
   createdAt: number;
 }
 
+export interface Business {
+  id: string;
+  name: string;
+  category: string;
+  logoUrl: string; // Base64 or URL
+  description: string;
+  contactEmail: string;
+  contactPhone: string;
+  website?: string;
+  createdAt: number;
+}
+
 export type Theme = 'light' | 'dark';
 
 export interface AlertState {

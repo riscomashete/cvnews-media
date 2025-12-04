@@ -83,6 +83,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6 text-sm uppercase tracking-wider font-medium text-gray-700 dark:text-gray-300">
             <Link to="/" className={isActive('/')}>Home</Link>
+            <Link to="/directory" className={isActive('/directory')}>Directory</Link>
             <Link to="/about" className={isActive('/about')}>About</Link>
             <Link to="/contact" className={isActive('/contact')}>Contact</Link>
             {user && (
@@ -91,6 +92,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <Link to="/admin" className={isActive('/admin')}>Dashboard</Link>
                 <Link to="/admin/messages" className={isActive('/admin/messages')}>Messages</Link>
                 <Link to="/admin/ads" className={isActive('/admin/ads')}>Ads</Link>
+                <Link to="/admin/directory" className={isActive('/admin/directory')}>Biz Dir</Link>
                 {user.role === 'admin' && <Link to="/admin/users" className={isActive('/admin/users')}>Users</Link>}
               </>
             )}
@@ -164,6 +166,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
             <nav className="flex flex-col p-4 gap-4 text-center">
               <Link to="/" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
+              <Link to="/directory" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>SME Directory</Link>
               <Link to="/about" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>About</Link>
               <Link to="/contact" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Contact</Link>
               {user && (
@@ -171,6 +174,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <Link to="/admin" className="py-2 hover:text-brand-red font-bold text-brand-red" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
                   <Link to="/admin/messages" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Messages</Link>
                   <Link to="/admin/ads" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Manage Ads</Link>
+                  <Link to="/admin/directory" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Directory Mgr</Link>
                   {user.role === 'admin' && <Link to="/admin/users" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Manage Users</Link>}
                 </>
               )}
@@ -204,6 +208,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div>
             <h3 className="font-bold text-lg mb-4 text-gray-200">Quick Links</h3>
             <ul className="text-gray-400 text-sm space-y-2">
+              <li><Link to="/directory" className="hover:text-white transition">Business Directory</Link></li>
               <li><Link to="/about" className="hover:text-white transition">Mission & Vision</Link></li>
               <li><Link to="/contact" className="hover:text-white transition">Advertise with Us</Link></li>
               <li><Link to="/login" className="hover:text-white transition">Staff Portal</Link></li>

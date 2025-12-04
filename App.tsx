@@ -6,12 +6,16 @@ import Article from './pages/Article';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
-import Search from './pages/Search'; // Import search
+import Search from './pages/Search'; 
+import Directory from './pages/Directory'; // Import Directory
+
 import Dashboard from './pages/admin/Dashboard';
 import ArticleEditor from './pages/admin/ArticleEditor';
 import UserManagement from './pages/admin/UserManagement';
 import AdsManager from './pages/admin/AdsManager';
 import Messages from './pages/admin/Messages';
+import DirectoryManager from './pages/admin/DirectoryManager'; // Import Admin Directory
+
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -33,6 +37,7 @@ const App: React.FC = () => {
               <Route path="/" element={<Home />} />
               <Route path="/article/:id" element={<Article />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/directory" element={<Directory />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
@@ -56,6 +61,11 @@ const App: React.FC = () => {
               <Route path="/admin/messages" element={
                 <ProtectedRoute>
                   <Messages />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/directory" element={
+                <ProtectedRoute>
+                  <DirectoryManager />
                 </ProtectedRoute>
               } />
               <Route path="/admin/create" element={
