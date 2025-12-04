@@ -65,8 +65,10 @@ export interface Comment {
   id: string;
   articleId: string;
   articleTitle?: string; // Optional, for admin display
+  parentId?: string; // For nested replies
   name: string;
   content: string;
+  isStaff?: boolean; // Verified staff badge
   createdAt: number;
 }
 

@@ -398,15 +398,19 @@ export const db = {
     try {
       let q;
       if (articleId) {
-        q = query(collection(firestore, 'comments'), where('articleId', '==', articleId), orderBy('createdAt', 'desc'));
+        // OPTIMIZATION: Removed orderBy to prevent "Composite Index Required" error.
+        // We will sort client-side instead.
+        q = query(collection(firestore, 'comments'), where('articleId', '==', articleId));
       } else {
         q = query(collection(firestore, 'comments'), orderBy('createdAt', 'desc'));
       }
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment));
+      const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment));
+      
+      // Sort client-side (Newest first)
+      return comments.sort((a, b) => b.createdAt - a.createdAt);
     } catch (error: any) {
       if (error.code === 'permission-denied') {
-         // Return empty if no permission (e.g. before rules update)
          return [];
       }
       console.error(error);
