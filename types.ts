@@ -29,8 +29,9 @@ export interface ContactMessage {
 export interface Advertisement {
   id: string;
   title: string;
-  type: 'image' | 'video'; // 'video' will be an embed link
-  mediaUrl: string; // Base64 for image, URL for video
+  type: 'image' | 'video' | 'announcement'; 
+  mediaUrl?: string; // Base64 for image, URL for video
+  content?: string; // For text-based announcements
   linkUrl?: string;
   active: boolean;
   createdAt: number;

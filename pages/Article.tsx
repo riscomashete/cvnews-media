@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { db } from '../services/db';
 import { Article as ArticleType } from '../types';
-import AdBanner from '../components/AdBanner';
 
 const Article: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -51,8 +50,6 @@ const Article: React.FC = () => {
               <p className="text-xs text-gray-500 dark:text-gray-400">CVNEWS MEDIA CC Contributor</p>
             </div>
           </div>
-
-          <AdBanner placement="content" />
 
           <div className="prose prose-lg dark:prose-invert max-w-none font-serif leading-loose" 
                dangerouslySetInnerHTML={{ __html: article.content }} />

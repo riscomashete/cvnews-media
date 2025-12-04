@@ -6,11 +6,15 @@ const AdsManager: React.FC = () => {
   const [ads, setAds] = useState<Advertisement[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Tab State
+  const [tab, setTab] = useState<'media' | 'text'>('media');
+
   // Form State
   const [title, setTitle] = useState('');
-  const [type, setType] = useState<'image' | 'video'>('image');
+  const [type, setType] = useState<'image' | 'video' | 'announcement'>('image');
+  const [content, setContent] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  const [mediaUrl, setMediaUrl] = useState(''); // Stores Base64 for images or URL for video
+  const [mediaUrl, setMediaUrl] = useState(''); 
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -30,7 +34,6 @@ const AdsManager: React.FC = () => {
     setUploading(true);
     const reader = new FileReader();
     reader.onload = (event) => {
-      // Compress/Resize logic similar to articles
       const img = new Image();
       img.src = event.target?.result as string;
       img.onload = () => {
@@ -57,25 +60,32 @@ const AdsManager: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mediaUrl) return alert("Please upload an image or enter a video URL");
+    
+    // Validation
+    if (tab === 'media' && !mediaUrl) return alert("Please upload an image or enter a video URL");
+    if (tab === 'text' && !content) return alert("Please enter announcement content");
+
+    const finalType = tab === 'text' ? 'announcement' : type;
 
     await db.createAd({
       title,
-      type,
-      mediaUrl,
+      type: finalType,
+      mediaUrl: tab === 'media' ? mediaUrl : undefined,
+      content: tab === 'text' ? content : undefined,
       linkUrl,
       active: true
     });
 
     // Reset Form
     setTitle('');
+    setContent('');
     setLinkUrl('');
     setMediaUrl('');
     loadAds();
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Delete this advertisement?")) {
+    if (window.confirm("Delete this item?")) {
       await db.deleteAd(id);
       loadAds();
     }
@@ -95,7 +105,23 @@ const AdsManager: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Upload Form */}
         <div className="bg-white dark:bg-gray-800 p-6 shadow h-fit border-t-4 border-blue-600">
-          <h2 className="text-xl font-bold mb-4 dark:text-white">New Advertisement</h2>
+          <h2 className="text-xl font-bold mb-4 dark:text-white">Create New</h2>
+          
+          <div className="flex mb-6 border-b dark:border-gray-700">
+            <button 
+              onClick={() => { setTab('media'); setType('image'); }}
+              className={`flex-1 py-2 text-sm font-bold ${tab === 'media' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+            >
+              Media Ad
+            </button>
+            <button 
+              onClick={() => { setTab('text'); setType('announcement'); }}
+              className={`flex-1 py-2 text-sm font-bold ${tab === 'text' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+            >
+              Announcement
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label className="block text-sm font-bold mb-1 dark:text-gray-300">Title (Internal)</label>
@@ -108,39 +134,57 @@ const AdsManager: React.FC = () => {
               />
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-bold mb-1 dark:text-gray-300">Type</label>
-              <select 
-                value={type} 
-                onChange={e => setType(e.target.value as any)}
-                className="w-full border p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              >
-                <option value="image">Image Banner</option>
-                <option value="video">Video Embed (YouTube)</option>
-              </select>
-            </div>
+            {tab === 'media' && (
+              <>
+                <div className="mb-4">
+                  <label className="block text-sm font-bold mb-1 dark:text-gray-300">Type</label>
+                  <select 
+                    value={type} 
+                    onChange={e => setType(e.target.value as any)}
+                    className="w-full border p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  >
+                    <option value="image">Image Banner</option>
+                    <option value="video">Video Embed (YouTube)</option>
+                  </select>
+                </div>
 
-            {type === 'image' ? (
+                {type === 'image' ? (
+                  <div className="mb-4">
+                    <label className="block text-sm font-bold mb-1 dark:text-gray-300">Upload Image</label>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="w-full text-sm dark:text-gray-300"
+                    />
+                    {uploading && <p className="text-xs text-blue-500">Processing...</p>}
+                    {mediaUrl && <img src={mediaUrl} alt="Preview" className="mt-2 h-20 object-contain" />}
+                  </div>
+                ) : (
+                  <div className="mb-4">
+                    <label className="block text-sm font-bold mb-1 dark:text-gray-300">Video Embed URL</label>
+                    <input 
+                      type="text" 
+                      value={mediaUrl} 
+                      onChange={e => setMediaUrl(e.target.value)} 
+                      placeholder="https://www.youtube.com/embed/..."
+                      className="w-full border p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {tab === 'text' && (
               <div className="mb-4">
-                <label className="block text-sm font-bold mb-1 dark:text-gray-300">Upload Image</label>
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="w-full text-sm dark:text-gray-300"
-                />
-                {uploading && <p className="text-xs text-blue-500">Processing...</p>}
-                {mediaUrl && <img src={mediaUrl} alt="Preview" className="mt-2 h-20 object-contain" />}
-              </div>
-            ) : (
-              <div className="mb-4">
-                <label className="block text-sm font-bold mb-1 dark:text-gray-300">Video Embed URL</label>
-                <input 
-                  type="text" 
-                  value={mediaUrl} 
-                  onChange={e => setMediaUrl(e.target.value)} 
-                  placeholder="https://www.youtube.com/embed/..."
+                <label className="block text-sm font-bold mb-1 dark:text-gray-300">Announcement Text</label>
+                <textarea 
+                  value={content} 
+                  onChange={e => setContent(e.target.value)} 
+                  rows={4}
                   className="w-full border p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="Enter your announcement here..."
+                  required
                 />
               </div>
             )}
@@ -161,31 +205,36 @@ const AdsManager: React.FC = () => {
               disabled={uploading}
               className="w-full bg-blue-600 text-white font-bold py-2 hover:bg-blue-700 transition"
             >
-              Add Advertisement
+              {tab === 'media' ? 'Upload Ad' : 'Post Announcement'}
             </button>
           </form>
         </div>
 
         {/* Ads List */}
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="font-bold dark:text-white">Active & Inactive Ads</h2>
+          <h2 className="font-bold dark:text-white">Active & Inactive Items</h2>
           {ads.map(ad => (
             <div key={ad.id} className={`flex items-start gap-4 p-4 border rounded ${ad.active ? 'bg-white dark:bg-gray-800 border-green-200' : 'bg-gray-100 dark:bg-gray-900 border-gray-300 opacity-70'}`}>
-              <div className="w-24 h-16 bg-gray-200 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                {ad.type === 'image' ? (
+              <div className="w-24 h-24 bg-gray-200 flex-shrink-0 flex items-center justify-center overflow-hidden border dark:border-gray-700">
+                {ad.type === 'image' && ad.mediaUrl ? (
                   <img src={ad.mediaUrl} alt={ad.title} className="w-full h-full object-cover" />
-                ) : (
+                ) : ad.type === 'video' ? (
                   <span className="text-2xl">📺</span>
+                ) : (
+                  <span className="text-2xl">📣</span>
                 )}
               </div>
-              <div className="flex-grow">
-                <h3 className="font-bold dark:text-white">{ad.title}</h3>
-                <div className="text-xs text-gray-500 space-x-2">
-                  <span>{ad.type.toUpperCase()}</span>
+              <div className="flex-grow min-w-0">
+                <h3 className="font-bold dark:text-white truncate">{ad.title}</h3>
+                <div className="text-xs text-gray-500 space-x-2 mb-2">
+                  <span className="uppercase font-semibold">{ad.type}</span>
                   <span>•</span>
                   <span>{new Date(ad.createdAt).toLocaleDateString()}</span>
-                  {ad.linkUrl && <a href={ad.linkUrl} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline ml-2">Visit Link</a>}
                 </div>
+                {ad.type === 'announcement' && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 italic">"{ad.content}"</p>
+                )}
+                {ad.linkUrl && <a href={ad.linkUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline block mt-1">Link: {ad.linkUrl}</a>}
               </div>
               <div className="flex flex-col gap-2">
                 <button 
@@ -203,7 +252,7 @@ const AdsManager: React.FC = () => {
               </div>
             </div>
           ))}
-          {ads.length === 0 && <p className="text-gray-500">No advertisements found.</p>}
+          {ads.length === 0 && <p className="text-gray-500">No content found.</p>}
         </div>
       </div>
     </div>

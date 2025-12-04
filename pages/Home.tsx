@@ -72,11 +72,6 @@ const Home: React.FC = () => {
         </section>
       )}
 
-      {/* ADVERTISEMENT BANNER */}
-      <section className="container mx-auto px-4">
-        <AdBanner placement="header" />
-      </section>
-
       {/* Content Area: Main News + Sidebar */}
       <section className="container mx-auto px-4 py-16">
         <div className="flex flex-col lg:flex-row gap-12">
