@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
@@ -179,6 +180,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     <Link to="/admin/messages" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Messages</Link>
                     <Link to="/admin/ads" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Ads Manager</Link>
                     <Link to="/admin/directory" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Biz Directory</Link>
+                    <Link to="/admin/events" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Events</Link>
+                    <Link to="/admin/comments" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Comments</Link>
                     {user.role === 'admin' && <Link to="/admin/users" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Users</Link>}
                   </div>
                 </div>
@@ -212,12 +215,20 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                    Messages
                 </Link>
 
+                <Link to="/admin/comments" className={isAdminActive('/admin/comments')}>
+                   Comments
+                </Link>
+
                 <Link to="/admin/ads" className={isAdminActive('/admin/ads')}>
                    Ads & Announcements
                 </Link>
 
                 <Link to="/admin/directory" className={isAdminActive('/admin/directory')}>
-                   Business Directory
+                   Directory
+                </Link>
+
+                <Link to="/admin/events" className={isAdminActive('/admin/events')}>
+                   Events
                 </Link>
 
                 {user.role === 'admin' && (

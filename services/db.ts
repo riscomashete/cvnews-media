@@ -1,3 +1,4 @@
+
 import { 
   collection, 
   getDocs, 
@@ -9,10 +10,11 @@ import {
   query, 
   orderBy,
   where,
-  limit
+  limit,
+  increment
 } from 'firebase/firestore';
 import { db as firestore } from './firebase'; 
-import { Article, ContactMessage, Advertisement, Business } from '../types';
+import { Article, ContactMessage, Advertisement, Business, AppEvent, Comment } from '../types';
 
 const COLLECTION_NAME = 'articles';
 
@@ -38,6 +40,25 @@ export const db = {
     }
   },
 
+  getArticlesByCategory: async (category: string): Promise<Article[]> => {
+    try {
+      // Note: In a real app, you need a compound index for 'category' + 'createdAt'
+      // For this demo, we'll fetch all and filter or use a simple query if indexed.
+      const q = query(
+        collection(firestore, COLLECTION_NAME), 
+        where('category', '==', category),
+        orderBy('createdAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
+    } catch (error: any) {
+      // Fallback if index is missing
+      console.warn("Index might be missing, falling back to client filter", error);
+      const all = await db.getArticles();
+      return all.filter(a => a.category === category);
+    }
+  },
+
   getArticleById: async (id: string): Promise<Article | undefined> => {
     try {
       // Check local storage first if it looks like a local ID
@@ -57,6 +78,16 @@ export const db = {
     } catch (error) {
       console.error("Error getting article by ID:", error);
       return undefined;
+    }
+  },
+
+  incrementView: async (id: string): Promise<void> => {
+    if (id.startsWith('local_')) return;
+    try {
+      const docRef = doc(firestore, COLLECTION_NAME, id);
+      await updateDoc(docRef, { views: increment(1) });
+    } catch (error) {
+      console.error("Error incrementing view:", error);
     }
   },
 
@@ -309,6 +340,95 @@ export const db = {
         return;
       }
       await deleteDoc(doc(firestore, 'businesses', id));
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  },
+
+  // === EVENTS CALENDAR ===
+  getEvents: async (): Promise<AppEvent[]> => {
+    try {
+      const q = query(collection(firestore, 'events'), orderBy('date', 'asc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppEvent));
+    } catch (error: any) {
+      if (error.code === 'permission-denied') {
+        const local = localStorage.getItem('local_events');
+        return local ? JSON.parse(local) : [];
+      }
+      return [];
+    }
+  },
+
+  createEvent: async (event: Omit<AppEvent, 'id' | 'createdAt'>): Promise<void> => {
+    try {
+      await addDoc(collection(firestore, 'events'), {
+        ...event,
+        createdAt: Date.now()
+      });
+    } catch (error: any) {
+      if (error.code === 'permission-denied') {
+        const local = JSON.parse(localStorage.getItem('local_events') || '[]');
+        local.push({ id: 'local_' + Date.now(), ...event, createdAt: Date.now() });
+        localStorage.setItem('local_events', JSON.stringify(local));
+        return;
+      }
+      throw error;
+    }
+  },
+
+  deleteEvent: async (id: string): Promise<void> => {
+    try {
+      if (id.startsWith('local_')) {
+        const local = JSON.parse(localStorage.getItem('local_events') || '[]');
+        const filtered = local.filter((e: AppEvent) => e.id !== id);
+        localStorage.setItem('local_events', JSON.stringify(filtered));
+        return;
+      }
+      await deleteDoc(doc(firestore, 'events', id));
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  },
+
+  // === COMMENTS ===
+  getComments: async (articleId?: string): Promise<Comment[]> => {
+    try {
+      let q;
+      if (articleId) {
+        q = query(collection(firestore, 'comments'), where('articleId', '==', articleId), orderBy('createdAt', 'desc'));
+      } else {
+        q = query(collection(firestore, 'comments'), orderBy('createdAt', 'desc'));
+      }
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment));
+    } catch (error: any) {
+      if (error.code === 'permission-denied') {
+         // Return empty if no permission (e.g. before rules update)
+         return [];
+      }
+      console.error(error);
+      return [];
+    }
+  },
+
+  addComment: async (comment: Omit<Comment, 'id' | 'createdAt'>): Promise<void> => {
+    try {
+      await addDoc(collection(firestore, 'comments'), {
+        ...comment,
+        createdAt: Date.now()
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  },
+
+  deleteComment: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(firestore, 'comments', id));
     } catch (error) {
       console.error(error);
       throw error;

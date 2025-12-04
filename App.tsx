@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -7,14 +8,17 @@ import About from './pages/About';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
 import Search from './pages/Search'; 
-import Directory from './pages/Directory'; // Import Directory
+import Directory from './pages/Directory';
+import CategoryPage from './pages/CategoryPage'; // New
 
 import Dashboard from './pages/admin/Dashboard';
 import ArticleEditor from './pages/admin/ArticleEditor';
 import UserManagement from './pages/admin/UserManagement';
 import AdsManager from './pages/admin/AdsManager';
 import Messages from './pages/admin/Messages';
-import DirectoryManager from './pages/admin/DirectoryManager'; // Import Admin Directory
+import DirectoryManager from './pages/admin/DirectoryManager';
+import EventsManager from './pages/admin/EventsManager'; // New
+import CommentsManager from './pages/admin/CommentsManager'; // New
 
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -36,6 +40,7 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/article/:id" element={<Article />} />
+              <Route path="/category/:categoryName" element={<CategoryPage />} />
               <Route path="/search" element={<Search />} />
               <Route path="/directory" element={<Directory />} />
               <Route path="/about" element={<About />} />
@@ -66,6 +71,16 @@ const App: React.FC = () => {
               <Route path="/admin/directory" element={
                 <ProtectedRoute>
                   <DirectoryManager />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/events" element={
+                <ProtectedRoute>
+                  <EventsManager />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/comments" element={
+                <ProtectedRoute>
+                  <CommentsManager />
                 </ProtectedRoute>
               } />
               <Route path="/admin/create" element={

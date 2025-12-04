@@ -1,3 +1,4 @@
+
 export interface Article {
   id: string;
   title: string;
@@ -46,6 +47,26 @@ export interface Business {
   contactEmail: string;
   contactPhone: string;
   website?: string;
+  createdAt: number;
+}
+
+export interface AppEvent {
+  id: string;
+  title: string;
+  date: string; // ISO date string YYYY-MM-DD
+  time: string;
+  location: string;
+  description: string;
+  linkUrl?: string;
+  createdAt: number;
+}
+
+export interface Comment {
+  id: string;
+  articleId: string;
+  articleTitle?: string; // Optional, for admin display
+  name: string;
+  content: string;
   createdAt: number;
 }
 

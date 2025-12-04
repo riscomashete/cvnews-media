@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -37,6 +38,19 @@ service cloud.firestore {
     match /businesses/{id} {
       allow read: if true; // Public can see directory
       allow write: if request.auth != null; // Only staff can manage directory
+    }
+
+    // EVENTS
+    match /events/{id} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // COMMENTS
+    match /comments/{id} {
+      allow read: if true;
+      allow create: if true; // Public can comment
+      allow delete: if request.auth != null; // Admins can moderate
     }
   }
 }

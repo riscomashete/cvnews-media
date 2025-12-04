@@ -1,10 +1,12 @@
+
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/db';
 import { Article } from '../types';
 import ArticleCard from '../components/ArticleCard';
 import { Link } from 'react-router-dom';
-import AdBanner from '../components/AdBanner';
 import AnnouncementsWidget from '../components/AnnouncementsWidget';
+import EventsWidget from '../components/EventsWidget';
+import WeatherWidget from '../components/WeatherWidget';
 
 const Home: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -96,8 +98,14 @@ const Home: React.FC = () => {
 
           {/* Right Column: Sidebar (1/3 width) */}
           <div className="lg:w-1/3 space-y-8">
+             {/* Weather Widget (New) */}
+             <WeatherWidget />
+
              {/* Announcements Widget */}
              <AnnouncementsWidget />
+             
+             {/* Events Widget (NEW) */}
+             <EventsWidget />
              
              {/* About Widget */}
              <div className="bg-gray-50 dark:bg-gray-800 p-6 border-t-4 border-black dark:border-gray-600 shadow-sm">
