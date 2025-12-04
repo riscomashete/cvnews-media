@@ -6,6 +6,7 @@ import Article from './pages/Article';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
+import Search from './pages/Search'; // Import search
 import Dashboard from './pages/admin/Dashboard';
 import ArticleEditor from './pages/admin/ArticleEditor';
 import UserManagement from './pages/admin/UserManagement';
@@ -31,6 +32,7 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/article/:id" element={<Article />} />
+              <Route path="/search" element={<Search />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />

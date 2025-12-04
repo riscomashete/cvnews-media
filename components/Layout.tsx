@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { db } from '../services/db';
+import { Advertisement } from '../types';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [globalError, setGlobalError] = useState('');
+  
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
   const location = useLocation();
+
+  // Ticker State
+  const [tickerMsg, setTickerMsg] = useState('');
 
   const isActive = (path: string) => location.pathname === path ? 'text-brand-red font-bold' : 'hover:text-brand-red';
 
@@ -20,6 +29,26 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return () => window.removeEventListener('firestore-permission-error', handleError);
   }, []);
 
+  // Fetch latest announcement for Top Ticker
+  useEffect(() => {
+    const fetchTicker = async () => {
+      const ads = await db.getAds();
+      const announcements = ads.filter(a => a.type === 'announcement' && a.active);
+      if (announcements.length > 0) {
+        setTickerMsg(announcements[0].title + ': ' + (announcements[0].content || ''));
+      }
+    };
+    fetchTicker();
+  }, [location.pathname]); // Refresh on navigation
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setIsMenuOpen(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col font-sans">
       {/* Global Error Banner */}
@@ -29,14 +58,26 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       )}
 
+      {/* Breaking News Ticker */}
+      {tickerMsg && (
+        <div className="bg-black text-white text-xs py-2 overflow-hidden relative">
+          <div className="container mx-auto px-4 flex items-center">
+            <span className="bg-brand-red px-2 py-0.5 font-bold uppercase mr-3 shrink-0 text-[10px] tracking-wider">Breaking</span>
+            <div className="whitespace-nowrap overflow-hidden w-full">
+               <span className="inline-block animate-marquee">{tickerMsg}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white dark:bg-brand-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 shrink-0">
             <div className="bg-brand-red text-white p-1 font-bold text-xl tracking-tighter">CV</div>
-            <span className="text-xl font-bold tracking-wide dark:text-white">NEWS MEDIA</span>
+            <span className="text-xl font-bold tracking-wide dark:text-white hidden sm:block">NEWS MEDIA</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -55,8 +96,23 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             )}
           </nav>
 
-          {/* Actions */}
+          {/* Actions & Search */}
           <div className="hidden md:flex items-center gap-4">
+            
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="relative">
+              <input 
+                type="text" 
+                placeholder="Search..." 
+                className="bg-gray-100 dark:bg-gray-800 border-none rounded-full py-1 pl-4 pr-8 text-sm focus:ring-1 focus:ring-brand-red w-32 focus:w-48 transition-all dark:text-white"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button type="submit" className="absolute right-2 top-1.5 text-gray-400 hover:text-brand-red">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              </button>
+            </form>
+
             <button 
               onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
@@ -90,6 +146,22 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {/* Mobile Nav */}
         {isMenuOpen && (
           <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+            {/* Mobile Search */}
+            <form onSubmit={handleSearch} className="p-4 border-b dark:border-gray-800">
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Search articles..." 
+                  className="w-full bg-gray-100 dark:bg-gray-800 border-none rounded py-2 pl-4 pr-10 text-sm focus:ring-1 focus:ring-brand-red dark:text-white"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <button type="submit" className="absolute right-3 top-2 text-gray-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </button>
+              </div>
+            </form>
+
             <nav className="flex flex-col p-4 gap-4 text-center">
               <Link to="/" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
               <Link to="/about" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>About</Link>
