@@ -19,7 +19,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Ticker State
   const [tickerMsg, setTickerMsg] = useState('');
 
+  const isAdminRoute = location.pathname.startsWith('/admin');
   const isActive = (path: string) => location.pathname === path ? 'text-brand-red font-bold' : 'hover:text-brand-red';
+  const isAdminActive = (path: string) => location.pathname === path ? 'text-white font-bold border-b-2 border-brand-red' : 'text-gray-400 hover:text-white transition-colors';
 
   React.useEffect(() => {
     const handleError = () => {
@@ -58,8 +60,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       )}
 
-      {/* Breaking News Ticker */}
-      {tickerMsg && (
+      {/* Breaking News Ticker (Only show on public pages) */}
+      {!isAdminRoute && tickerMsg && (
         <div className="bg-black text-white text-xs py-2 overflow-hidden relative">
           <div className="container mx-auto px-4 flex items-center">
             <span className="bg-brand-red px-2 py-0.5 font-bold uppercase mr-3 shrink-0 text-[10px] tracking-wider">Breaking</span>
@@ -70,7 +72,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       )}
 
-      {/* Header */}
+      {/* Main Header */}
       <header className="bg-white dark:bg-brand-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           
@@ -80,20 +82,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <span className="text-xl font-bold tracking-wide dark:text-white hidden sm:block">NEWS MEDIA</span>
           </Link>
 
-          {/* Desktop Nav */}
+          {/* Desktop Nav (Public Links) */}
           <nav className="hidden md:flex items-center gap-6 text-sm uppercase tracking-wider font-medium text-gray-700 dark:text-gray-300">
             <Link to="/" className={isActive('/')}>Home</Link>
             <Link to="/directory" className={isActive('/directory')}>Directory</Link>
             <Link to="/about" className={isActive('/about')}>About</Link>
             <Link to="/contact" className={isActive('/contact')}>Contact</Link>
+            
             {user && (
               <>
                 <div className="w-px h-4 bg-gray-300 mx-2"></div>
-                <Link to="/admin" className={isActive('/admin')}>Dashboard</Link>
-                <Link to="/admin/messages" className={isActive('/admin/messages')}>Messages</Link>
-                <Link to="/admin/ads" className={isActive('/admin/ads')}>Ads</Link>
-                <Link to="/admin/directory" className={isActive('/admin/directory')}>Biz Dir</Link>
-                {user.role === 'admin' && <Link to="/admin/users" className={isActive('/admin/users')}>Users</Link>}
+                <Link to="/admin" className={`font-bold ${isAdminRoute ? 'text-brand-red' : 'text-gray-700 dark:text-gray-300 hover:text-brand-red'}`}>
+                  Dashboard
+                </Link>
               </>
             )}
           </nav>
@@ -169,15 +170,20 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <Link to="/directory" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>SME Directory</Link>
               <Link to="/about" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>About</Link>
               <Link to="/contact" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Contact</Link>
+              
               {user && (
-                <>
-                  <Link to="/admin" className="py-2 hover:text-brand-red font-bold text-brand-red" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
-                  <Link to="/admin/messages" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Messages</Link>
-                  <Link to="/admin/ads" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Manage Ads</Link>
-                  <Link to="/admin/directory" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Directory Mgr</Link>
-                  {user.role === 'admin' && <Link to="/admin/users" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Manage Users</Link>}
-                </>
+                <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mt-2">
+                  <h4 className="text-xs font-bold uppercase text-gray-500 mb-3">Admin Panel</h4>
+                  <div className="flex flex-col gap-2">
+                    <Link to="/admin" className="font-bold text-brand-red" onClick={() => setIsMenuOpen(false)}>Overview</Link>
+                    <Link to="/admin/messages" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Messages</Link>
+                    <Link to="/admin/ads" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Ads Manager</Link>
+                    <Link to="/admin/directory" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Biz Directory</Link>
+                    {user.role === 'admin' && <Link to="/admin/users" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Users</Link>}
+                  </div>
+                </div>
               )}
+
               <div className="border-t pt-4 flex flex-col gap-3">
                  <button onClick={() => { toggleTheme(); setIsMenuOpen(false); }} className="text-sm dark:text-gray-300">Toggle Theme</button>
                  {user ? <button onClick={logout} className="text-brand-red font-bold">Logout</button> : <Link to="/login" onClick={() => setIsMenuOpen(false)} className="font-bold dark:text-white">Sign In</Link>}
@@ -186,6 +192,43 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         )}
       </header>
+
+      {/* ADMIN TOOLBAR - Visible only on Admin Routes */}
+      {user && isAdminRoute && (
+        <div className="bg-gray-900 text-white border-b border-gray-800 sticky top-16 z-40 shadow-md">
+          <div className="container mx-auto px-4 overflow-x-auto">
+             <div className="flex items-center h-12 gap-6 whitespace-nowrap text-sm">
+                <span className="text-gray-500 font-bold text-xs uppercase tracking-widest hidden md:inline">Admin Tools:</span>
+                
+                <Link to="/admin" className={isAdminActive('/admin')}>
+                   Overview
+                </Link>
+
+                <Link to="/admin/create" className={isAdminActive('/admin/create')}>
+                   + Write Story
+                </Link>
+
+                <Link to="/admin/messages" className={isAdminActive('/admin/messages')}>
+                   Messages
+                </Link>
+
+                <Link to="/admin/ads" className={isAdminActive('/admin/ads')}>
+                   Ads & Announcements
+                </Link>
+
+                <Link to="/admin/directory" className={isAdminActive('/admin/directory')}>
+                   Business Directory
+                </Link>
+
+                {user.role === 'admin' && (
+                  <Link to="/admin/users" className={isAdminActive('/admin/users')}>
+                     Staff Users
+                  </Link>
+                )}
+             </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-grow">
