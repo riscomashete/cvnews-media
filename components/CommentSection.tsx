@@ -8,7 +8,8 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   
-  // New Comment Form State
+  // States
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -20,27 +21,32 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
   useEffect(() => {
     loadComments();
     if (user) {
-      setName(user.name); // Auto-fill name for staff
+      setName(user.name);
     }
   }, [articleId, user]);
 
   const loadComments = async () => {
-    const data = await db.getComments(articleId);
-    setComments(data);
+    try {
+      const data = await db.getComments(articleId);
+      setComments(data);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleDelete = async (commentId: string) => {
-    if (!window.confirm("Are you sure you want to delete this comment?")) return;
+    if (!window.confirm("Delete this comment permanently?")) return;
+    
+    setDeletingId(commentId);
     try {
       await db.deleteComment(commentId);
-      // Reload comments to reflect deletion
-      await loadComments();
+      // Fix: Update local state instead of re-fetching to prevent cache issues
+      setComments(prev => prev.filter(c => c.id !== commentId));
     } catch (e: any) {
-      // Permission errors are handled by db service alerts, but for others:
       console.error("Failed to delete comment", e);
-      if (e.code !== 'permission-denied') {
-         alert("Failed to delete comment. Please try again.");
-      }
+      alert(`Error deleting: ${e.message}`);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -49,42 +55,48 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
     if (!name.trim() || !content.trim()) return;
 
     setSubmitting(true);
-    await db.addComment({
-      articleId,
-      articleTitle,
-      name,
-      content,
-      isStaff: !!user, // Mark as staff if logged in
-    });
-    setSubmitting(false);
-    if (!user) setName(''); // Only clear name if guest
-    setContent('');
-    loadComments();
+    try {
+      await db.addComment({
+        articleId,
+        articleTitle,
+        name,
+        content,
+        isStaff: !!user,
+      });
+      if (!user) setName('');
+      setContent('');
+      await loadComments();
+    } catch (error: any) {
+      alert("Failed to post comment. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleReplySubmit = async (e: React.FormEvent, parentId: string) => {
     e.preventDefault();
-    if (!replyContent.trim()) return;
-    
-    // Safety check: Only staff can use this form in UI, but double check user exists
-    if (!user) return; 
+    if (!replyContent.trim() || !user) return; 
 
     setSubmitting(true);
-    await db.addComment({
-      articleId,
-      articleTitle,
-      parentId,
-      name: user.name,
-      content: replyContent,
-      isStaff: true,
-    });
-    setSubmitting(false);
-    setReplyingTo(null);
-    setReplyContent('');
-    loadComments();
+    try {
+      await db.addComment({
+        articleId,
+        articleTitle,
+        parentId,
+        name: user.name,
+        content: replyContent,
+        isStaff: true,
+      });
+      setReplyingTo(null);
+      setReplyContent('');
+      await loadComments();
+    } catch (error) {
+      alert("Failed to post reply.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // Group comments: Roots vs Replies
   const rootComments = comments.filter(c => !c.parentId);
   const getReplies = (parentId: string) => comments.filter(c => c.parentId === parentId).sort((a,b) => a.createdAt - b.createdAt);
 
@@ -92,11 +104,9 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
     <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
       <h3 className="text-2xl font-bold font-serif mb-6 dark:text-white">Reader Comments ({comments.length})</h3>
 
-      {/* List */}
       <div className="space-y-8 mb-10">
         {rootComments.map(c => (
           <div key={c.id}>
-            {/* Parent Comment */}
             <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg relative group">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
@@ -111,28 +121,25 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
               </div>
               <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{c.content}</p>
               
-              {/* Staff Actions - ALWAYS VISIBLE */}
               {user && (
                 <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 flex gap-4">
                   <button 
-                    onClick={() => setReplyingTo(replyingTo === c.id ? null : c.id)}
+                    onClick={(e) => { e.stopPropagation(); setReplyingTo(replyingTo === c.id ? null : c.id); }}
                     className="text-xs text-brand-red font-bold uppercase hover:underline flex items-center gap-1"
                   >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
                     {replyingTo === c.id ? 'Cancel Reply' : 'Reply'}
                   </button>
                   <button 
-                    onClick={() => handleDelete(c.id)}
-                    className="text-xs text-gray-400 font-bold uppercase hover:text-red-600 hover:underline flex items-center gap-1"
+                    onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
+                    disabled={deletingId === c.id}
+                    className={`text-xs font-bold uppercase flex items-center gap-1 ${deletingId === c.id ? 'text-gray-400 cursor-wait' : 'text-gray-400 hover:text-red-600 hover:underline'}`}
                   >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    Delete
+                    {deletingId === c.id ? 'Deleting...' : 'Delete'}
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Nested Replies */}
             <div className="ml-8 mt-2 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
                {getReplies(c.id).map(reply => (
                   <div key={reply.id} className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded">
@@ -147,21 +154,20 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{reply.content}</p>
                     
-                    {/* Delete Reply Button */}
                     {user && (
                       <div className="mt-2 text-right">
                          <button 
-                           onClick={() => handleDelete(reply.id)}
+                           onClick={(e) => { e.stopPropagation(); handleDelete(reply.id); }}
+                           disabled={deletingId === reply.id}
                            className="text-[10px] text-red-500 hover:text-red-700 font-bold uppercase border border-red-200 px-2 py-0.5 rounded bg-white dark:bg-gray-800"
                          >
-                           Delete Reply
+                           {deletingId === reply.id ? 'Deleting...' : 'Delete Reply'}
                          </button>
                       </div>
                     )}
                   </div>
                ))}
 
-               {/* Reply Form */}
                {replyingTo === c.id && user && (
                  <form onSubmit={(e) => handleReplySubmit(e, c.id)} className="mt-2 bg-gray-50 dark:bg-gray-900 p-3 border border-brand-red rounded">
                     <label className="block text-xs font-bold uppercase mb-1 text-brand-red">Reply to {c.name}</label>
@@ -197,7 +203,6 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
         {comments.length === 0 && <p className="text-gray-500 italic">No comments yet. Be the first to say something!</p>}
       </div>
 
-      {/* Main Comment Form */}
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-lg shadow-sm">
         <h4 className="font-bold mb-4 dark:text-white">Leave a Comment</h4>
         <form onSubmit={handleSubmit}>

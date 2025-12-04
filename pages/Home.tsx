@@ -7,11 +7,17 @@ import { Link } from 'react-router-dom';
 import AnnouncementsWidget from '../components/AnnouncementsWidget';
 import EventsWidget from '../components/EventsWidget';
 import WeatherWidget from '../components/WeatherWidget';
+import Pagination from '../components/Pagination';
+
+const ITEMS_PER_PAGE = 6;
 
 const Home: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [featured, setFeatured] = useState<Article | null>(null);
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Newsletter State
   const [subEmail, setSubEmail] = useState('');
   const [subStatus, setSubStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -39,6 +45,24 @@ const Home: React.FC = () => {
       setSubEmail('');
     } catch (error) {
       setSubStatus('error');
+    }
+  };
+
+  // Pagination Logic
+  const totalPages = Math.ceil(articles.length / ITEMS_PER_PAGE);
+  const displayedArticles = articles.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top of list roughly
+    const element = document.getElementById('latest-stories');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -75,7 +99,7 @@ const Home: React.FC = () => {
       )}
 
       {/* Content Area: Main News + Sidebar */}
-      <section className="container mx-auto px-4 py-16">
+      <section className="container mx-auto px-4 py-16" id="latest-stories">
         <div className="flex flex-col lg:flex-row gap-12">
           
           {/* Left Column: Latest Articles (2/3 width on large screens) */}
@@ -86,7 +110,7 @@ const Home: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {articles.map(article => (
+              {displayedArticles.map(article => (
                 <ArticleCard key={article.id} article={article} />
               ))}
             </div>
@@ -94,6 +118,13 @@ const Home: React.FC = () => {
             {articles.length === 0 && !featured && (
                <div className="text-center py-20 text-gray-500">Loading articles or no content available...</div>
             )}
+
+            {/* Pagination Controls */}
+            <Pagination 
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
           </div>
 
           {/* Right Column: Sidebar (1/3 width) */}

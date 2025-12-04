@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import RichTextEditor from '../../components/RichTextEditor';
 import { db } from '../../services/db';
 // Removed Firebase Storage imports to avoid billing issues
-import { generateSummary } from '../../services/gemini';
+import { generateSummary, generateSEO, proofreadContent, generateHeadlines, generateCoverImage } from '../../services/gemini';
 import { Article } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
@@ -20,6 +20,13 @@ const ArticleEditor: React.FC = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   
+  // AI States
+  const [analyzingSeo, setAnalyzingSeo] = useState(false);
+  const [polishing, setPolishing] = useState(false);
+  const [generatingHeadlines, setGeneratingHeadlines] = useState(false);
+  const [suggestedHeadlines, setSuggestedHeadlines] = useState<string[]>([]);
+  const [generatingImage, setGeneratingImage] = useState(false);
+
   // UI State for Custom Category
   const [isCustomCategory, setIsCustomCategory] = useState(false);
 
@@ -30,7 +37,10 @@ const ArticleEditor: React.FC = () => {
     author: '',
     category: 'News',
     imageUrl: 'https://picsum.photos/seed/new/800/600',
-    published: false
+    published: false,
+    seoTitle: '',
+    metaDescription: '',
+    keywords: ''
   });
 
   useEffect(() => {
@@ -52,7 +62,10 @@ const ArticleEditor: React.FC = () => {
               author: article.author,
               category: article.category,
               imageUrl: article.imageUrl,
-              published: article.published
+              published: article.published,
+              seoTitle: article.seoTitle || '',
+              metaDescription: article.metaDescription || '',
+              keywords: article.keywords || ''
             });
             // Check if loaded category is custom
             if (!PREDEFINED_CATEGORIES.includes(article.category)) {
@@ -109,6 +122,62 @@ const ArticleEditor: React.FC = () => {
     const summary = await generateSummary(formData.content);
     setFormData(prev => ({ ...prev, excerpt: summary }));
     setGeneratingAi(false);
+  };
+
+  const handleAiSeo = async () => {
+    if (!formData.content) return alert("Please add content first.");
+    setAnalyzingSeo(true);
+    const result = await generateSEO(formData.content);
+    if (result) {
+      setFormData(prev => ({
+        ...prev,
+        seoTitle: result.seoTitle,
+        metaDescription: result.metaDescription,
+        keywords: result.keywords
+      }));
+    } else {
+      alert("Failed to generate SEO data.");
+    }
+    setAnalyzingSeo(false);
+  };
+
+  const handleAiPolish = async () => {
+    if (!formData.content) return;
+    if (!confirm("This will use Gemini Pro to rewrite your content for grammar, flow, and clarity. It may take a few seconds. Continue?")) return;
+    
+    setPolishing(true);
+    try {
+      const polished = await proofreadContent(formData.content);
+      if (polished) {
+        setFormData(prev => ({ ...prev, content: polished }));
+      }
+    } catch (e) {
+      alert("Failed to polish content.");
+    }
+    setPolishing(false);
+  };
+
+  const handleSuggestHeadlines = async () => {
+    if (!formData.content) return alert("Add some content first so AI can suggest titles.");
+    setGeneratingHeadlines(true);
+    const titles = await generateHeadlines(formData.content);
+    setSuggestedHeadlines(titles);
+    setGeneratingHeadlines(false);
+  };
+
+  const handleGenerateImage = async () => {
+    const promptText = formData.title || formData.excerpt;
+    if (!promptText) return alert("Enter a title or excerpt first to generate an image.");
+    
+    setGeneratingImage(true);
+    const b64Image = await generateCoverImage(promptText);
+    
+    if (b64Image) {
+      setFormData(prev => ({ ...prev, imageUrl: b64Image }));
+    } else {
+      alert("Could not generate image. Please try again.");
+    }
+    setGeneratingImage(false);
   };
 
   // Convert file to Base64 with resizing to prevent large DB documents
@@ -189,8 +258,41 @@ const ArticleEditor: React.FC = () => {
       
       <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div>
-            <label className="block font-bold mb-2 dark:text-gray-300">Title</label>
+          <div className="relative">
+            <div className="flex justify-between items-center mb-2">
+              <label className="block font-bold dark:text-gray-300">Title</label>
+              <button 
+                type="button" 
+                onClick={handleSuggestHeadlines}
+                disabled={generatingHeadlines || !formData.content}
+                className="text-xs text-brand-red font-bold uppercase hover:underline disabled:opacity-50"
+              >
+                {generatingHeadlines ? 'Brainstorming...' : 'Suggest Headlines'}
+              </button>
+            </div>
+            
+            {suggestedHeadlines.length > 0 && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-gray-700 rounded border border-red-100 dark:border-gray-600">
+                <p className="text-xs text-gray-500 dark:text-gray-300 mb-2 font-bold uppercase">AI Suggestions (Click to use):</p>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedHeadlines.map((h, i) => (
+                    <button 
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({...prev, title: h}));
+                        setSuggestedHeadlines([]);
+                      }}
+                      className="text-xs bg-white dark:bg-gray-800 border px-2 py-1 rounded hover:border-brand-red dark:text-white text-left"
+                    >
+                      {h}
+                    </button>
+                  ))}
+                  <button type="button" onClick={() => setSuggestedHeadlines([])} className="text-xs text-gray-400 hover:text-gray-600 px-2">Clear</button>
+                </div>
+              </div>
+            )}
+
             <input 
               required
               type="text" 
@@ -202,7 +304,25 @@ const ArticleEditor: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-bold mb-2 dark:text-gray-300">Content</label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block font-bold dark:text-gray-300">Content</label>
+              <button
+                type="button"
+                onClick={handleAiPolish}
+                disabled={polishing || !formData.content}
+                className="text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1"
+                title="Uses Gemini 3 Pro to fix grammar and improve flow"
+              >
+                {polishing ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    Polishing...
+                  </>
+                ) : (
+                  '✨ Proofread & Polish'
+                )}
+              </button>
+            </div>
             <RichTextEditor 
               initialValue={formData.content}
               onChange={content => setFormData(prev => ({ ...prev, content }))}
@@ -218,7 +338,7 @@ const ArticleEditor: React.FC = () => {
                   disabled={generatingAi}
                   className="text-xs bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1"
                 >
-                  {generatingAi ? 'Thinking...' : '✨ Generate with Gemini'}
+                  {generatingAi ? 'Thinking...' : '✨ Summarize with Gemini'}
                 </button>
              </div>
             <textarea 
@@ -229,6 +349,60 @@ const ArticleEditor: React.FC = () => {
               placeholder="Short summary for the home page..."
             ></textarea>
           </div>
+
+          {/* New SEO Section */}
+          <div className="bg-white dark:bg-gray-800 p-6 shadow border dark:border-gray-700">
+            <div className="flex justify-between items-center mb-4 border-b pb-2 dark:border-gray-700">
+              <h3 className="font-bold text-lg dark:text-white">Search Engine Optimization (SEO)</h3>
+              <button 
+                  type="button"
+                  onClick={handleAiSeo}
+                  disabled={analyzingSeo || !formData.content}
+                  className="text-xs bg-teal-600 text-white px-3 py-1 rounded hover:bg-teal-700 disabled:opacity-50 flex items-center gap-1"
+                >
+                  {analyzingSeo ? 'Analyzing...' : '✨ Auto-Fill SEO'}
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-1 dark:text-gray-300">SEO Title</label>
+                <p className="text-xs text-gray-500 mb-1">Recommended: 50-60 characters. Defaults to article title if empty.</p>
+                <input 
+                  type="text" 
+                  className="w-full border p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  value={formData.seoTitle}
+                  onChange={e => setFormData({...formData, seoTitle: e.target.value})}
+                  placeholder={formData.title}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1 dark:text-gray-300">Meta Description</label>
+                <p className="text-xs text-gray-500 mb-1">Recommended: 150-160 characters. Defaults to excerpt if empty.</p>
+                <textarea 
+                  rows={3}
+                  className="w-full border p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  value={formData.metaDescription}
+                  onChange={e => setFormData({...formData, metaDescription: e.target.value})}
+                  placeholder={formData.excerpt}
+                ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1 dark:text-gray-300">Keywords</label>
+                <p className="text-xs text-gray-500 mb-1">Comma-separated list of keywords.</p>
+                <input 
+                  type="text" 
+                  className="w-full border p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  value={formData.keywords}
+                  onChange={e => setFormData({...formData, keywords: e.target.value})}
+                  placeholder="e.g. business, finance, namibia sme"
+                />
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <div className="space-y-6">
@@ -271,7 +445,17 @@ const ArticleEditor: React.FC = () => {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm mb-1 dark:text-gray-300">Featured Image</label>
+              <div className="flex justify-between items-center mb-1">
+                 <label className="block text-sm dark:text-gray-300">Featured Image</label>
+                 <button 
+                    type="button" 
+                    onClick={handleGenerateImage}
+                    disabled={generatingImage}
+                    className="text-[10px] bg-gradient-to-r from-blue-500 to-purple-500 text-white px-2 py-0.5 rounded font-bold uppercase hover:opacity-90 disabled:opacity-50"
+                 >
+                    {generatingImage ? 'Generating...' : '✨ Generate AI Image'}
+                 </button>
+              </div>
               
               {/* File Upload Input */}
               <div className="mb-2">

@@ -10,6 +10,9 @@ export interface Article {
   createdAt: number;
   published: boolean;
   views: number;
+  seoTitle?: string;
+  metaDescription?: string;
+  keywords?: string;
 }
 
 export interface User {

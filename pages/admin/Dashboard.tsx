@@ -3,10 +3,14 @@ import { Link } from 'react-router-dom';
 import { db } from '../../services/db';
 import { Article } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import Pagination from '../../components/Pagination';
+
+const ITEMS_PER_PAGE = 10;
 
 const Dashboard: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const { user, isAdminOrEditor } = useAuth();
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     loadArticles();
@@ -28,6 +32,18 @@ const Dashboard: React.FC = () => {
     if (!isAdminOrEditor) return;
     await db.updateArticle(article.id, { published: !article.published });
     loadArticles();
+  };
+
+  // Pagination Logic
+  const totalPages = Math.ceil(articles.length / ITEMS_PER_PAGE);
+  const displayedArticles = articles.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -54,7 +70,7 @@ const Dashboard: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-            {articles.map(article => (
+            {displayedArticles.map(article => (
               <tr key={article.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
                 <td className="p-4">
                   <span 
@@ -81,6 +97,12 @@ const Dashboard: React.FC = () => {
           </tbody>
         </table>
       </div>
+      
+      <Pagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 };

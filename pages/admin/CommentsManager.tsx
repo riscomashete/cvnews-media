@@ -8,6 +8,10 @@ const CommentsManager: React.FC = () => {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Transactional States
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   // Reply State
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -15,26 +19,40 @@ const CommentsManager: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    load();
+    loadComments();
   }, []);
 
-  const load = async () => {
-    const data = await db.getComments(); // Fetches all comments
-    setComments(data);
-    setLoading(false);
+  const loadComments = async () => {
+    setLoading(true);
+    try {
+      const data = await db.getComments();
+      setComments(data);
+    } catch (error) {
+      console.error(error);
+      setStatusMsg({ type: 'error', text: 'Failed to fetch comments.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this comment permanently? (This will also hide nested replies)")) return;
+    if (!window.confirm("Delete this comment permanently?")) return;
     
+    setDeletingId(id);
+    setStatusMsg(null);
     try {
       await db.deleteComment(id);
-      await load();
+      
+      // CRITICAL FIX: Manually remove from state to reflect instant deletion.
+      setComments(prev => prev.filter(c => c.id !== id));
+      
+      setStatusMsg({ type: 'success', text: 'Comment deleted.' });
     } catch (e: any) {
       console.error("Failed to delete comment", e);
-      if (e.code !== 'permission-denied') {
-          alert("Error: " + e.message);
-      }
+      setStatusMsg({ type: 'error', text: `Error deleting: ${e.message}` });
+    } finally {
+      setDeletingId(null);
+      setTimeout(() => setStatusMsg(null), 3000);
     }
   };
 
@@ -46,42 +64,59 @@ const CommentsManager: React.FC = () => {
     try {
       await db.addComment({
         articleId: parentComment.articleId,
-        articleTitle: parentComment.articleTitle, // Keep context
-        parentId: parentComment.id, // Link as child
+        articleTitle: parentComment.articleTitle,
+        parentId: parentComment.id,
         name: user.name,
         content: replyContent,
-        isStaff: true, // Mark as official
+        isStaff: true,
       });
       
-      // Reset and reload
       setReplyingTo(null);
       setReplyContent('');
-      load();
-      alert("Reply posted successfully!");
-    } catch (error) {
+      setStatusMsg({ type: 'success', text: 'Reply posted.' });
+      
+      // For adding, re-fetching is usually okay because it's a new item, 
+      // but we can also just append it if we returned the new object from db.ts.
+      // We will stick to loadComments for additions.
+      await loadComments();
+    } catch (error: any) {
       console.error("Error posting reply:", error);
-      alert("Failed to post reply.");
+      setStatusMsg({ type: 'error', text: 'Failed to post reply.' });
     } finally {
       setSubmitting(false);
+      setTimeout(() => setStatusMsg(null), 3000);
     }
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 dark:text-white">Comments Moderation</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold dark:text-white">Comments</h1>
+        <button onClick={() => loadComments()} className="text-sm font-bold text-brand-red hover:underline">
+           Refresh Data
+        </button>
+      </div>
       
-      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden border dark:border-gray-700">
-        <div className="p-4 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-between items-center">
-            <h2 className="font-bold dark:text-white">Recent Activity</h2>
-            <button onClick={load} className="text-xs text-brand-red font-bold hover:underline">Refresh</button>
+      {/* Status Banner */}
+      {statusMsg && (
+        <div className={`mb-6 p-4 rounded text-sm font-bold ${
+          statusMsg.type === 'success' 
+            ? 'bg-green-100 text-green-800 border border-green-200' 
+            : 'bg-red-100 text-red-800 border border-red-200'
+        }`}>
+          {statusMsg.text}
         </div>
+      )}
 
-        {comments.length === 0 ? (
-           <div className="p-8 text-center text-gray-500">No comments found.</div>
+      <div className="bg-white dark:bg-gray-800 shadow overflow-hidden border dark:border-gray-700 rounded-lg">
+        {loading ? (
+             <div className="p-12 text-center text-gray-500">Loading comments...</div>
+        ) : comments.length === 0 ? (
+           <div className="p-12 text-center text-gray-500">No comments found.</div>
         ) : (
            <div className="divide-y divide-gray-100 dark:divide-gray-700">
              {comments.map(c => (
-                <div key={c.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <div key={c.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
                    <div className="flex justify-between items-start mb-2">
                       <div className="flex flex-col">
                          <div className="flex items-center gap-2">
@@ -93,12 +128,14 @@ const CommentsManager: React.FC = () => {
                             <span className="text-xs text-gray-500">{new Date(c.createdAt).toLocaleString()}</span>
                          </div>
                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-brand-red font-bold bg-red-50 dark:bg-red-900/30 px-1.5 rounded">
-                                Art: {c.articleTitle || 'Unknown Article'}
-                            </span>
+                            {c.articleTitle && (
+                                <span className="text-xs text-brand-red font-bold bg-red-50 dark:bg-red-900/30 px-1.5 rounded truncate max-w-[200px]">
+                                    {c.articleTitle}
+                                </span>
+                            )}
                             {c.parentId && (
                                 <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 rounded">
-                                   ↳ In reply to a comment
+                                   ↳ Reply
                                 </span>
                             )}
                          </div>
@@ -115,20 +152,25 @@ const CommentsManager: React.FC = () => {
                         </button>
                         <button 
                           onClick={() => handleDelete(c.id)}
-                          className="text-red-600 text-xs font-bold border border-red-200 bg-red-50 px-3 py-1 rounded hover:bg-red-100"
+                          disabled={deletingId === c.id}
+                          className={`text-xs font-bold border px-3 py-1 rounded transition flex items-center gap-1 ${
+                              deletingId === c.id 
+                              ? 'text-red-400 border-red-100 bg-red-50 cursor-wait'
+                              : 'text-red-600 border-red-200 bg-red-50 hover:bg-red-100'
+                          }`}
                         >
-                          Delete
+                          {deletingId === c.id ? 'Deleting...' : 'Delete'}
                         </button>
                       </div>
                    </div>
                    
-                   <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-900 p-3 rounded mt-2">
+                   <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-900 p-3 rounded mt-2 border border-gray-100 dark:border-gray-800">
                       {c.content}
                    </p>
 
                    {/* Admin Reply Form */}
                    {replyingTo === c.id && (
-                     <form onSubmit={(e) => handleReplySubmit(e, c)} className="mt-4 ml-4 pl-4 border-l-2 border-brand-red">
+                     <form onSubmit={(e) => handleReplySubmit(e, c)} className="mt-4 ml-4 pl-4 border-l-2 border-brand-red animate-fade-in">
                         <label className="block text-xs font-bold uppercase mb-1 dark:text-gray-300">
                            Replying as <span className="text-brand-red">{user?.name}</span>
                         </label>

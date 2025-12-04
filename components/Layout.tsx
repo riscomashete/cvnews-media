@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../services/db';
 import { Advertisement } from '../types';
+import ChatBot from './ChatBot';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { theme, toggleTheme } = useTheme();
@@ -245,6 +245,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <main className="flex-grow">
         {children}
       </main>
+
+      {/* ChatBot Widget */}
+      <ChatBot />
 
       {/* Footer */}
       <footer className="bg-black text-white py-12 border-t-4 border-brand-red">

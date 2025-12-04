@@ -29,10 +29,8 @@ export const db = {
       } as Article));
     } catch (error: any) {
       console.error("Error getting articles:", error);
-      // Broadcast error for global banner
       if (error.code === 'permission-denied') {
         window.dispatchEvent(new Event('firestore-permission-error'));
-        // Return local articles if offline
         const local = localStorage.getItem('local_articles');
         return local ? JSON.parse(local) : [];
       }
@@ -42,8 +40,6 @@ export const db = {
 
   getArticlesByCategory: async (category: string): Promise<Article[]> => {
     try {
-      // Note: In a real app, you need a compound index for 'category' + 'createdAt'
-      // For this demo, we'll fetch all and filter or use a simple query if indexed.
       const q = query(
         collection(firestore, COLLECTION_NAME), 
         where('category', '==', category),
@@ -52,7 +48,6 @@ export const db = {
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
     } catch (error: any) {
-      // Fallback if index is missing
       console.warn("Index might be missing, falling back to client filter", error);
       const all = await db.getArticles();
       return all.filter(a => a.category === category);
@@ -61,7 +56,6 @@ export const db = {
 
   getArticleById: async (id: string): Promise<Article | undefined> => {
     try {
-      // Check local storage first if it looks like a local ID
       if (id.startsWith('local_')) {
         const localArticles = JSON.parse(localStorage.getItem('local_articles') || '[]');
         return localArticles.find((a: Article) => a.id === id);
@@ -93,16 +87,12 @@ export const db = {
 
   getRelatedArticles: async (currentId: string, category: string): Promise<Article[]> => {
     try {
-      // Fetch a larger pool of recent articles to find matches or fallbacks
       const q = query(collection(firestore, COLLECTION_NAME), orderBy('createdAt', 'desc'), limit(20));
       const snapshot = await getDocs(q);
       
       const all = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
-      
-      // 1. Try to find articles in the same category
       let related = all.filter(a => a.id !== currentId && a.category === category && a.published);
       
-      // 2. If we don't have 3, fill up with other latest articles (Fallback)
       if (related.length < 3) {
         const others = all.filter(a => a.id !== currentId && a.category !== category && a.published);
         related = [...related, ...others];
@@ -133,7 +123,6 @@ export const db = {
       console.error("Error creating article:", error);
       if (error.code === 'permission-denied') {
         window.dispatchEvent(new Event('firestore-permission-error'));
-        // Fallback to LocalStorage so user doesn't lose work
         const localArticles = JSON.parse(localStorage.getItem('local_articles') || '[]');
         const localId = 'local_' + Date.now();
         const localArticle = { id: localId, ...article, createdAt: Date.now(), views: 0 };
@@ -158,9 +147,6 @@ export const db = {
       await updateDoc(docRef, updates);
     } catch (error: any) {
       console.error("Error updating article:", error);
-      if (error.code === 'permission-denied') {
-         alert("Cannot update cloud article due to permissions. Check Console.");
-      }
       throw error;
     }
   },
@@ -180,7 +166,6 @@ export const db = {
     }
   },
 
-  // NEW: Subscribe to Newsletter
   subscribe: async (email: string): Promise<void> => {
     try {
       await addDoc(collection(firestore, 'subscribers'), {
@@ -193,7 +178,6 @@ export const db = {
     }
   },
 
-  // NEW: Send Contact Message
   sendMessage: async (data: { name: string; email: string; message: string }): Promise<void> => {
     try {
       await addDoc(collection(firestore, 'messages'), {
@@ -222,14 +206,15 @@ export const db = {
 
   deleteMessage: async (id: string): Promise<void> => {
     try {
-      await deleteDoc(doc(firestore, 'messages', id));
-    } catch (error) {
+      if (!id) throw new Error("No ID provided");
+      const docRef = doc(firestore, 'messages', id);
+      await deleteDoc(docRef);
+    } catch (error: any) {
       console.error("Error deleting message:", error);
-      throw error;
+      throw new Error(error.message || "Database delete failed");
     }
   },
 
-  // === ADVERTISEMENTS ===
   getAds: async (): Promise<Advertisement[]> => {
     try {
       const q = query(collection(firestore, 'advertisements'), orderBy('createdAt', 'desc'));
@@ -277,9 +262,6 @@ export const db = {
       await deleteDoc(doc(firestore, 'advertisements', id));
     } catch (error: any) {
       console.error("Error deleting ad:", error);
-      if (error.code === 'permission-denied') {
-        alert("Permission denied to delete cloud ad.");
-      }
       throw error;
     }
   },
@@ -295,14 +277,10 @@ export const db = {
       await updateDoc(doc(firestore, 'advertisements', id), { active: !currentStatus });
     } catch (error: any) {
       console.error("Error toggling ad status:", error);
-      if (error.code === 'permission-denied') {
-         alert("Permission denied to update cloud ad.");
-      }
       throw error;
     }
   },
 
-  // === BUSINESS DIRECTORY ===
   getBusinesses: async (): Promise<Business[]> => {
     try {
       const q = query(collection(firestore, 'businesses'), orderBy('name', 'asc'));
@@ -351,7 +329,6 @@ export const db = {
     }
   },
 
-  // === EVENTS CALENDAR ===
   getEvents: async (): Promise<AppEvent[]> => {
     try {
       const q = query(collection(firestore, 'events'), orderBy('date', 'asc'));
@@ -398,24 +375,20 @@ export const db = {
     }
   },
 
-  // === COMMENTS ===
   getComments: async (articleId?: string): Promise<Comment[]> => {
     try {
       let q;
       if (articleId) {
-        // OPTIMIZATION: Removed orderBy to prevent "Composite Index Required" error.
-        // We will sort client-side instead.
         q = query(collection(firestore, 'comments'), where('articleId', '==', articleId));
       } else {
         q = query(collection(firestore, 'comments'), orderBy('createdAt', 'desc'));
       }
       const snapshot = await getDocs(q);
       const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment));
-      
-      // Sort client-side (Newest first)
       return comments.sort((a, b) => b.createdAt - a.createdAt);
     } catch (error: any) {
       if (error.code === 'permission-denied') {
+         console.warn("Permission denied fetching comments");
          return [];
       }
       console.error(error);
@@ -431,25 +404,17 @@ export const db = {
       });
     } catch (error: any) {
       console.error(error);
-      if (error.code === 'permission-denied') {
-        alert("Failed to post comment. Please check your connection or permissions.");
-      }
       throw error;
     }
   },
 
   deleteComment: async (id: string): Promise<void> => {
     try {
+      if (!id) throw new Error("No ID provided");
       await deleteDoc(doc(firestore, 'comments', id));
     } catch (error: any) {
-      console.error(error);
-      if (error.code === 'permission-denied') {
-        alert("Permission denied: You do not have rights to delete this comment. Please ensure you are logged in as a staff member and Firestore rules are updated.");
-      } else {
-        // Alert on other errors too so user isn't confused why button "did nothing"
-        alert("Error deleting comment: " + error.message);
-      }
-      throw error;
+      console.error("Error deleting comment:", error);
+      throw new Error(error.message || "Database delete failed");
     }
   }
 };
