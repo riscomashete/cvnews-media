@@ -29,6 +29,21 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
     setComments(data);
   };
 
+  const handleDelete = async (commentId: string) => {
+    if (!window.confirm("Are you sure you want to delete this comment?")) return;
+    try {
+      await db.deleteComment(commentId);
+      // Reload comments to reflect deletion
+      await loadComments();
+    } catch (e: any) {
+      // Permission errors are handled by db service alerts, but for others:
+      console.error("Failed to delete comment", e);
+      if (e.code !== 'permission-denied') {
+         alert("Failed to delete comment. Please try again.");
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !content.trim()) return;
@@ -82,7 +97,7 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
         {rootComments.map(c => (
           <div key={c.id}>
             {/* Parent Comment */}
-            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg relative">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg relative group">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-gray-900 dark:text-white">{c.name}</span>
@@ -96,14 +111,24 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
               </div>
               <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{c.content}</p>
               
-              {/* Staff Reply Button */}
+              {/* Staff Actions - ALWAYS VISIBLE */}
               {user && (
-                <button 
-                  onClick={() => setReplyingTo(replyingTo === c.id ? null : c.id)}
-                  className="text-xs text-brand-red font-bold mt-2 hover:underline"
-                >
-                  {replyingTo === c.id ? 'Cancel Reply' : 'Reply'}
-                </button>
+                <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-700 flex gap-4">
+                  <button 
+                    onClick={() => setReplyingTo(replyingTo === c.id ? null : c.id)}
+                    className="text-xs text-brand-red font-bold uppercase hover:underline flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                    {replyingTo === c.id ? 'Cancel Reply' : 'Reply'}
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(c.id)}
+                    className="text-xs text-gray-400 font-bold uppercase hover:text-red-600 hover:underline flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    Delete
+                  </button>
+                </div>
               )}
             </div>
 
@@ -121,27 +146,49 @@ const CommentSection: React.FC<{ articleId: string, articleTitle: string }> = ({
                       <span className="text-[10px] text-gray-500 ml-auto">{new Date(reply.createdAt).toLocaleDateString()}</span>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{reply.content}</p>
+                    
+                    {/* Delete Reply Button */}
+                    {user && (
+                      <div className="mt-2 text-right">
+                         <button 
+                           onClick={() => handleDelete(reply.id)}
+                           className="text-[10px] text-red-500 hover:text-red-700 font-bold uppercase border border-red-200 px-2 py-0.5 rounded bg-white dark:bg-gray-800"
+                         >
+                           Delete Reply
+                         </button>
+                      </div>
+                    )}
                   </div>
                ))}
 
                {/* Reply Form */}
                {replyingTo === c.id && user && (
-                 <form onSubmit={(e) => handleReplySubmit(e, c.id)} className="mt-2">
+                 <form onSubmit={(e) => handleReplySubmit(e, c.id)} className="mt-2 bg-gray-50 dark:bg-gray-900 p-3 border border-brand-red rounded">
+                    <label className="block text-xs font-bold uppercase mb-1 text-brand-red">Reply to {c.name}</label>
                     <textarea 
                       className="w-full text-sm p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Write a reply..."
+                      placeholder="Write your official response..."
                       rows={2}
                       value={replyContent}
                       onChange={e => setReplyContent(e.target.value)}
                       autoFocus
                     />
-                    <button 
-                      type="submit" 
-                      disabled={submitting}
-                      className="mt-1 bg-black text-white text-xs px-3 py-1 font-bold uppercase rounded hover:opacity-80"
-                    >
-                      {submitting ? 'Posting...' : 'Post Reply'}
-                    </button>
+                    <div className="flex justify-end gap-2 mt-2">
+                      <button 
+                        type="button"
+                        onClick={() => setReplyingTo(null)}
+                        className="text-xs text-gray-500 hover:text-gray-700 font-bold uppercase"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={submitting}
+                        className="bg-brand-red text-white text-xs px-4 py-1 font-bold uppercase rounded hover:opacity-80"
+                      >
+                        {submitting ? 'Posting...' : 'Post Reply'}
+                      </button>
+                    </div>
                  </form>
                )}
             </div>

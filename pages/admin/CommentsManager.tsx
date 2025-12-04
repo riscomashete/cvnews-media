@@ -25,9 +25,16 @@ const CommentsManager: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Delete this comment permanently? (This will also hide nested replies)")) {
+    if (!confirm("Delete this comment permanently? (This will also hide nested replies)")) return;
+    
+    try {
       await db.deleteComment(id);
-      load();
+      await load();
+    } catch (e: any) {
+      console.error("Failed to delete comment", e);
+      if (e.code !== 'permission-denied') {
+          alert("Error: " + e.message);
+      }
     }
   };
 

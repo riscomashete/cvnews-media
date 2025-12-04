@@ -93,17 +93,22 @@ export const db = {
 
   getRelatedArticles: async (currentId: string, category: string): Promise<Article[]> => {
     try {
-      // In a real app with proper indexing, we would use a complex query.
-      // For simplicity and robustness without requiring manual index creation in console:
-      // We will fetch recent articles and filter in memory.
+      // Fetch a larger pool of recent articles to find matches or fallbacks
       const q = query(collection(firestore, COLLECTION_NAME), orderBy('createdAt', 'desc'), limit(20));
       const snapshot = await getDocs(q);
       
       const all = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
       
-      return all
-        .filter(a => a.id !== currentId && a.category === category && a.published)
-        .slice(0, 3);
+      // 1. Try to find articles in the same category
+      let related = all.filter(a => a.id !== currentId && a.category === category && a.published);
+      
+      // 2. If we don't have 3, fill up with other latest articles (Fallback)
+      if (related.length < 3) {
+        const others = all.filter(a => a.id !== currentId && a.category !== category && a.published);
+        related = [...related, ...others];
+      }
+      
+      return related.slice(0, 3);
     } catch (error) {
       console.error("Error fetching related articles", error);
       return [];
@@ -424,8 +429,11 @@ export const db = {
         ...comment,
         createdAt: Date.now()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      if (error.code === 'permission-denied') {
+        alert("Failed to post comment. Please check your connection or permissions.");
+      }
       throw error;
     }
   },
@@ -433,8 +441,14 @@ export const db = {
   deleteComment: async (id: string): Promise<void> => {
     try {
       await deleteDoc(doc(firestore, 'comments', id));
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      if (error.code === 'permission-denied') {
+        alert("Permission denied: You do not have rights to delete this comment. Please ensure you are logged in as a staff member and Firestore rules are updated.");
+      } else {
+        // Alert on other errors too so user isn't confused why button "did nothing"
+        alert("Error deleting comment: " + error.message);
+      }
       throw error;
     }
   }
