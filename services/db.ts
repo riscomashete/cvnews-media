@@ -23,14 +23,10 @@ export const db = {
     try {
       const q = query(collection(firestore, COLLECTION_NAME), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
-      const serverArticles = snapshot.docs.map(doc => ({ 
+      return snapshot.docs.map(doc => ({ 
         id: doc.id, 
         ...doc.data() 
       } as Article));
-      
-      // Merge with local articles if any
-      const localArticles = JSON.parse(localStorage.getItem('local_articles') || '[]');
-      return [...localArticles, ...serverArticles];
     } catch (error: any) {
       console.error("Error getting articles:", error);
       if (error.code === 'permission-denied') {
@@ -211,15 +207,6 @@ export const db = {
   deleteMessage: async (id: string): Promise<void> => {
     try {
       if (!id) throw new Error("No ID provided");
-      
-      // Handle local offline messages if implemented later or if legacy
-      if (id.startsWith('local_')) {
-         const local = JSON.parse(localStorage.getItem('local_messages') || '[]');
-         const filtered = local.filter((m: ContactMessage) => m.id !== id);
-         localStorage.setItem('local_messages', JSON.stringify(filtered));
-         return;
-      }
-
       const docRef = doc(firestore, 'messages', id);
       await deleteDoc(docRef);
     } catch (error: any) {
@@ -232,9 +219,7 @@ export const db = {
     try {
       const q = query(collection(firestore, 'advertisements'), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
-      const serverAds = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Advertisement));
-      const localAds = JSON.parse(localStorage.getItem('local_ads') || '[]');
-      return [...localAds, ...serverAds];
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Advertisement));
     } catch (error: any) {
       console.error("Error fetching ads:", error);
       if (error.code === 'permission-denied') {
@@ -300,9 +285,7 @@ export const db = {
     try {
       const q = query(collection(firestore, 'businesses'), orderBy('name', 'asc'));
       const snapshot = await getDocs(q);
-      const serverBiz = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
-      const localBiz = JSON.parse(localStorage.getItem('local_businesses') || '[]');
-      return [...localBiz, ...serverBiz];
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
     } catch (error: any) {
       console.error("Error fetching businesses:", error);
       if (error.code === 'permission-denied') {
@@ -350,9 +333,7 @@ export const db = {
     try {
       const q = query(collection(firestore, 'events'), orderBy('date', 'asc'));
       const snapshot = await getDocs(q);
-      const serverEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppEvent));
-      const localEvents = JSON.parse(localStorage.getItem('local_events') || '[]');
-      return [...localEvents, ...serverEvents];
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppEvent));
     } catch (error: any) {
       if (error.code === 'permission-denied') {
         const local = localStorage.getItem('local_events');
@@ -404,9 +385,6 @@ export const db = {
       }
       const snapshot = await getDocs(q);
       const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment));
-      
-      // Since comments aren't locally stored usually, we don't merge here unless strictly needed
-      // but for consistency we could check local_comments key if we implemented offline comments
       return comments.sort((a, b) => b.createdAt - a.createdAt);
     } catch (error: any) {
       if (error.code === 'permission-denied') {
@@ -433,13 +411,6 @@ export const db = {
   deleteComment: async (id: string): Promise<void> => {
     try {
       if (!id) throw new Error("No ID provided");
-      
-      if (id.startsWith('local_')) {
-        // Fallback if we ever implement offline comments
-        console.warn("Attempting to delete local comment (not fully supported but handling gracefully)");
-        return;
-      }
-
       await deleteDoc(doc(firestore, 'comments', id));
     } catch (error: any) {
       console.error("Error deleting comment:", error);

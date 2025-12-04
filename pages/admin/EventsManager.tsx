@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { db } from '../../services/db';
 import { AppEvent } from '../../types';
@@ -26,13 +25,9 @@ const EventsManager: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this event?")) return;
-    try {
+    if (confirm("Delete this event?")) {
       await db.deleteEvent(id);
-      setEvents(prev => prev.filter(e => e.id !== id));
-    } catch (error) {
-      console.error(error);
-      alert("Failed to delete event.");
+      load();
     }
   };
 

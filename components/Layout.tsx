@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
@@ -9,7 +10,12 @@ import ChatBot from './ChatBot';
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
+  
+  // Public Menu State
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // Admin Sidebar State
+  const [isAdminSidebarOpen, setIsAdminSidebarOpen] = useState(false);
+
   const [globalError, setGlobalError] = useState('');
   
   // Search State
@@ -22,7 +28,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isActive = (path: string) => location.pathname === path ? 'text-brand-red font-bold' : 'hover:text-brand-red';
-  const isAdminActive = (path: string) => location.pathname === path ? 'text-white font-bold border-b-2 border-brand-red' : 'text-gray-400 hover:text-white transition-colors';
 
   React.useEffect(() => {
     const handleError = () => {
@@ -32,8 +37,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return () => window.removeEventListener('firestore-permission-error', handleError);
   }, []);
 
-  // Fetch latest announcement for Top Ticker
+  // Fetch latest announcement for Top Ticker (Public Only)
   useEffect(() => {
+    if (isAdminRoute) return;
     const fetchTicker = async () => {
       const ads = await db.getAds();
       const announcements = ads.filter(a => a.type === 'announcement' && a.active);
@@ -42,7 +48,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       }
     };
     fetchTicker();
-  }, [location.pathname]); // Refresh on navigation
+  }, [location.pathname, isAdminRoute]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +58,135 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     }
   };
 
+  // ----------------------------------------------------------------------
+  // ADMIN LAYOUT
+  // ----------------------------------------------------------------------
+  if (user && isAdminRoute) {
+    const AdminLink = ({ to, icon, label }: { to: string, icon: React.ReactNode, label: string }) => {
+      const active = location.pathname === to;
+      return (
+        <Link 
+          to={to} 
+          onClick={() => setIsAdminSidebarOpen(false)}
+          className={`flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors border-l-4 ${
+            active 
+              ? 'bg-gray-800 text-brand-red border-brand-red' 
+              : 'text-gray-400 hover:bg-gray-800 hover:text-white border-transparent'
+          }`}
+        >
+          {icon}
+          <span>{label}</span>
+        </Link>
+      );
+    };
+
+    return (
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 font-sans overflow-hidden">
+        {/* Mobile Sidebar Overlay */}
+        {isAdminSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            onClick={() => setIsAdminSidebarOpen(false)}
+          ></div>
+        )}
+
+        {/* SIDEBAR */}
+        <aside className={`
+          fixed inset-y-0 left-0 z-50 w-64 bg-gray-900 text-gray-300 transition-transform duration-300 ease-in-out
+          md:translate-x-0 md:static flex flex-col shadow-2xl
+          ${isAdminSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}>
+          {/* Sidebar Header */}
+          <div className="h-16 flex items-center px-6 bg-black text-white font-bold tracking-wider text-xl shadow-md shrink-0">
+             <span className="text-brand-red mr-1">CV</span>ADMIN
+          </div>
+
+          {/* Nav Links */}
+          <nav className="flex-1 overflow-y-auto py-4 custom-scrollbar">
+             <div className="px-6 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">Content</div>
+             <AdminLink to="/admin" label="Overview" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>} />
+             <AdminLink to="/admin/create" label="Write Story" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>} />
+             
+             <div className="px-6 mt-6 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">Community</div>
+             <AdminLink to="/admin/messages" label="Messages" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>} />
+             <AdminLink to="/admin/comments" label="Comments" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>} />
+             
+             <div className="px-6 mt-6 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">Management</div>
+             <AdminLink to="/admin/ads" label="Ads & Tickers" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>} />
+             <AdminLink to="/admin/directory" label="Directory" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>} />
+             <AdminLink to="/admin/events" label="Events" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>} />
+             
+             {user.role === 'admin' && (
+                <>
+                  <div className="px-6 mt-6 mb-2 text-xs font-bold text-gray-500 uppercase tracking-widest">System</div>
+                  <AdminLink to="/admin/users" label="Staff Users" icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>} />
+                </>
+             )}
+          </nav>
+
+          {/* Sidebar Footer */}
+          <div className="p-4 bg-gray-950 border-t border-gray-800 shrink-0">
+             <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-full bg-brand-red flex items-center justify-center text-white font-bold shadow-sm">
+                  {user.name.charAt(0)}
+                </div>
+                <div className="overflow-hidden">
+                   <p className="text-sm font-bold text-white truncate">{user.name}</p>
+                   <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">{user.role}</p>
+                </div>
+             </div>
+             <div className="flex gap-2 mb-2">
+                <button 
+                   onClick={toggleTheme}
+                   className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-1.5 rounded text-xs flex items-center justify-center gap-1 transition"
+                   title="Toggle Theme"
+                >
+                  {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+                </button>
+             </div>
+             <div className="flex gap-2">
+                <Link to="/" className="flex-1 text-center text-xs font-bold bg-white text-black hover:bg-gray-200 py-2 rounded transition">
+                   View Site
+                </Link>
+                <button 
+                  onClick={logout} 
+                  className="flex-1 text-center text-xs font-bold bg-red-900/40 hover:bg-red-900 text-red-200 py-2 rounded transition"
+                >
+                   Logout
+                </button>
+             </div>
+          </div>
+        </aside>
+
+        {/* MAIN CONTENT WRAPPER */}
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+           
+           {/* Mobile Header (Admin) */}
+           <header className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-4 z-30 shrink-0">
+              <button 
+                onClick={() => setIsAdminSidebarOpen(true)} 
+                className="text-gray-600 dark:text-gray-300 p-2 -ml-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+              </button>
+              <span className="font-bold text-lg dark:text-white">Dashboard</span>
+              <div className="w-8">
+                 {/* Spacer for centering */}
+              </div> 
+           </header>
+
+           {/* Scrollable Content */}
+           <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 scroll-smooth">
+              {children}
+           </main>
+        </div>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------------------------
+  // PUBLIC LAYOUT
+  // ----------------------------------------------------------------------
   return (
     <div className="min-h-screen flex flex-col font-sans">
       {/* Global Error Banner */}
@@ -61,8 +196,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       )}
 
-      {/* Breaking News Ticker (Only show on public pages) */}
-      {!isAdminRoute && tickerMsg && (
+      {/* Breaking News Ticker */}
+      {tickerMsg && (
         <div className="bg-black text-white text-xs py-2 overflow-hidden relative">
           <div className="container mx-auto px-4 flex items-center">
             <span className="bg-brand-red px-2 py-0.5 font-bold uppercase mr-3 shrink-0 text-[10px] tracking-wider">Breaking</span>
@@ -93,8 +228,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             {user && (
               <>
                 <div className="w-px h-4 bg-gray-300 mx-2"></div>
-                <Link to="/admin" className={`font-bold ${isAdminRoute ? 'text-brand-red' : 'text-gray-700 dark:text-gray-300 hover:text-brand-red'}`}>
-                  Dashboard
+                <Link to="/admin" className="font-bold text-gray-700 dark:text-gray-300 hover:text-brand-red flex items-center gap-1">
+                  <span>Dashboard</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                 </Link>
               </>
             )}
@@ -173,18 +309,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <Link to="/contact" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Contact</Link>
               
               {user && (
-                <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mt-2">
-                  <h4 className="text-xs font-bold uppercase text-gray-500 mb-3">Admin Panel</h4>
-                  <div className="flex flex-col gap-2">
-                    <Link to="/admin" className="font-bold text-brand-red" onClick={() => setIsMenuOpen(false)}>Overview</Link>
-                    <Link to="/admin/messages" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Messages</Link>
-                    <Link to="/admin/ads" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Ads Manager</Link>
-                    <Link to="/admin/directory" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Biz Directory</Link>
-                    <Link to="/admin/events" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Events</Link>
-                    <Link to="/admin/comments" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Comments</Link>
-                    {user.role === 'admin' && <Link to="/admin/users" className="text-gray-700 dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Users</Link>}
-                  </div>
-                </div>
+                <Link to="/admin" className="py-2 font-bold text-brand-red" onClick={() => setIsMenuOpen(false)}>
+                  Go to Dashboard
+                </Link>
               )}
 
               <div className="border-t pt-4 flex flex-col gap-3">
@@ -195,51 +322,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         )}
       </header>
-
-      {/* ADMIN TOOLBAR - Visible only on Admin Routes */}
-      {user && isAdminRoute && (
-        <div className="bg-gray-900 text-white border-b border-gray-800 sticky top-16 z-40 shadow-md">
-          <div className="container mx-auto px-4 overflow-x-auto">
-             <div className="flex items-center h-12 gap-6 whitespace-nowrap text-sm">
-                <span className="text-gray-500 font-bold text-xs uppercase tracking-widest hidden md:inline">Admin Tools:</span>
-                
-                <Link to="/admin" className={isAdminActive('/admin')}>
-                   Overview
-                </Link>
-
-                <Link to="/admin/create" className={isAdminActive('/admin/create')}>
-                   + Write Story
-                </Link>
-
-                <Link to="/admin/messages" className={isAdminActive('/admin/messages')}>
-                   Messages
-                </Link>
-
-                <Link to="/admin/comments" className={isAdminActive('/admin/comments')}>
-                   Comments
-                </Link>
-
-                <Link to="/admin/ads" className={isAdminActive('/admin/ads')}>
-                   Ads & Announcements
-                </Link>
-
-                <Link to="/admin/directory" className={isAdminActive('/admin/directory')}>
-                   Directory
-                </Link>
-
-                <Link to="/admin/events" className={isAdminActive('/admin/events')}>
-                   Events
-                </Link>
-
-                {user.role === 'admin' && (
-                  <Link to="/admin/users" className={isAdminActive('/admin/users')}>
-                     Staff Users
-                  </Link>
-                )}
-             </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Content */}
       <main className="flex-grow">

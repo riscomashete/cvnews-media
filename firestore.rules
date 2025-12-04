@@ -12,19 +12,26 @@ service cloud.firestore {
     // ARTICLES COLLECTION
     match /articles/{articleId} {
       allow read: if true;
+      
+      // Allow staff to create/delete
       allow create, delete: if request.auth != null;
-      allow update: if request.auth != null || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']));
+      
+      // Allow staff to update ANYTHING, but allow public to update ONLY 'views'
+      allow update: if request.auth != null || 
+                    (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']));
     }
 
-    // SUBSCRIBERS
+    // SUBSCRIBERS (Newsletter)
     match /subscribers/{id} {
       allow create: if true; 
       allow read: if request.auth != null; 
     }
 
-    // MESSAGES
+    // CONTACT MESSAGES
     match /messages/{messageId} {
+      // Public can send messages
       allow create: if true;
+      // Staff can read, delete, and update
       allow read, update, delete: if request.auth != null; 
     }
 
@@ -34,7 +41,7 @@ service cloud.firestore {
       allow write: if request.auth != null; 
     }
 
-    // BUSINESSES
+    // BUSINESS DIRECTORY
     match /businesses/{id} {
       allow read: if true; 
       allow write: if request.auth != null; 
@@ -48,8 +55,10 @@ service cloud.firestore {
 
     // COMMENTS
     match /comments/{commentId} {
+      // Public can read and post comments
       allow read: if true;
       allow create: if true;
+      // Staff can delete or update (for replies/moderation)
       allow update, delete: if request.auth != null; 
     }
   }

@@ -25,25 +25,16 @@ const Dashboard: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this article?')) return;
-    
-    try {
+    if (window.confirm('Are you sure you want to delete this article?')) {
       await db.deleteArticle(id);
-      // Update local state directly to reflect change immediately and avoid cache issues
-      setArticles(prev => prev.filter(article => article.id !== id));
-    } catch (error) {
-      console.error("Failed to delete article", error);
-      alert("Failed to delete article. Please try again.");
+      loadArticles();
     }
   };
 
   const togglePublish = async (article: Article) => {
     if (!isAdminOrEditor) return;
     await db.updateArticle(article.id, { published: !article.published });
-    // For update, we can re-fetch or update local state. Re-fetching is usually safer for simple status toggles, 
-    // but local update is faster. Let's stick to re-fetch for status to ensure consistency, or update local.
-    // Let's update local to match the pattern.
-    setArticles(prev => prev.map(a => a.id === article.id ? { ...a, published: !a.published } : a));
+    loadArticles();
   };
 
   // Pagination Logic
