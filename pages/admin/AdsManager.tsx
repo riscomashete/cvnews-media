@@ -67,13 +67,15 @@ const AdsManager: React.FC = () => {
 
     const finalType = tab === 'text' ? 'announcement' : type;
 
+    // Use spread syntax to conditionally add fields. 
+    // Firestore crashes on 'undefined', so we must omit the key entirely if not used.
     await db.createAd({
       title,
       type: finalType,
-      mediaUrl: tab === 'media' ? mediaUrl : undefined,
-      content: tab === 'text' ? content : undefined,
       linkUrl,
-      active: true
+      active: true,
+      ...(tab === 'media' ? { mediaUrl } : {}),
+      ...(tab === 'text' ? { content } : {})
     });
 
     // Reset Form
