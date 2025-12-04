@@ -3,6 +3,7 @@ import { db } from '../services/db';
 import { Article } from '../types';
 import ArticleCard from '../components/ArticleCard';
 import { Link } from 'react-router-dom';
+import AdBanner from '../components/AdBanner';
 
 const Home: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -69,6 +70,11 @@ const Home: React.FC = () => {
           </div>
         </section>
       )}
+
+      {/* ADVERTISEMENT BANNER */}
+      <section className="container mx-auto px-4">
+        <AdBanner placement="header" />
+      </section>
 
       {/* Latest News Grid */}
       <section className="container mx-auto px-4 py-16">

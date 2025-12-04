@@ -10,7 +10,7 @@ import {
   orderBy 
 } from 'firebase/firestore';
 import { db as firestore } from './firebase'; 
-import { Article } from '../types';
+import { Article, ContactMessage, Advertisement } from '../types';
 
 const COLLECTION_NAME = 'articles';
 
@@ -124,6 +124,71 @@ export const db = {
       });
     } catch (error) {
       console.error("Error sending message:", error);
+      throw error;
+    }
+  },
+
+  getMessages: async (): Promise<ContactMessage[]> => {
+    try {
+      const q = query(collection(firestore, 'messages'), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      } as ContactMessage));
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      return [];
+    }
+  },
+
+  deleteMessage: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(firestore, 'messages', id));
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      throw error;
+    }
+  },
+
+  // === ADVERTISEMENTS ===
+  getAds: async (): Promise<Advertisement[]> => {
+    try {
+      const q = query(collection(firestore, 'advertisements'), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Advertisement));
+    } catch (error) {
+      console.error("Error fetching ads:", error);
+      return [];
+    }
+  },
+
+  createAd: async (ad: Omit<Advertisement, 'id' | 'createdAt'>): Promise<void> => {
+    try {
+      await addDoc(collection(firestore, 'advertisements'), {
+        ...ad,
+        createdAt: Date.now()
+      });
+    } catch (error) {
+      console.error("Error creating ad:", error);
+      throw error;
+    }
+  },
+
+  deleteAd: async (id: string): Promise<void> => {
+    try {
+      await deleteDoc(doc(firestore, 'advertisements', id));
+    } catch (error) {
+      console.error("Error deleting ad:", error);
+      throw error;
+    }
+  },
+
+  toggleAdStatus: async (id: string, currentStatus: boolean): Promise<void> => {
+    try {
+      await updateDoc(doc(firestore, 'advertisements', id), { active: !currentStatus });
+    } catch (error) {
+      console.error("Error toggling ad status:", error);
       throw error;
     }
   }

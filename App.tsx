@@ -9,6 +9,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/admin/Dashboard';
 import ArticleEditor from './pages/admin/ArticleEditor';
 import UserManagement from './pages/admin/UserManagement';
+import AdsManager from './pages/admin/AdsManager';
+import Messages from './pages/admin/Messages';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -42,6 +44,16 @@ const App: React.FC = () => {
               <Route path="/admin/users" element={
                 <ProtectedRoute>
                   <UserManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/ads" element={
+                <ProtectedRoute>
+                  <AdsManager />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/messages" element={
+                <ProtectedRoute>
+                  <Messages />
                 </ProtectedRoute>
               } />
               <Route path="/admin/create" element={

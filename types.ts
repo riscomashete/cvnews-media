@@ -18,6 +18,24 @@ export interface User {
   role: 'admin' | 'editor' | 'journalist';
 }
 
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: number;
+}
+
+export interface Advertisement {
+  id: string;
+  title: string;
+  type: 'image' | 'video'; // 'video' will be an embed link
+  mediaUrl: string; // Base64 for image, URL for video
+  linkUrl?: string;
+  active: boolean;
+  createdAt: number;
+}
+
 export type Theme = 'light' | 'dark';
 
 export interface AlertState {

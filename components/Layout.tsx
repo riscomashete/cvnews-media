@@ -7,12 +7,28 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [globalError, setGlobalError] = useState('');
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path ? 'text-brand-red font-bold' : 'hover:text-brand-red';
 
+  React.useEffect(() => {
+    const handleError = () => {
+      setGlobalError('Database permissions are locked. Features may be limited. Please update Firebase Rules.');
+    };
+    window.addEventListener('firestore-permission-error', handleError);
+    return () => window.removeEventListener('firestore-permission-error', handleError);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col font-sans">
+      {/* Global Error Banner */}
+      {globalError && (
+        <div className="bg-red-600 text-white text-center p-2 text-sm font-bold">
+          ⚠️ SYSTEM ALERT: {globalError} (Running in Offline Mode)
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white dark:bg-brand-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -24,12 +40,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8 text-sm uppercase tracking-wider font-medium text-gray-700 dark:text-gray-300">
+          <nav className="hidden md:flex items-center gap-6 text-sm uppercase tracking-wider font-medium text-gray-700 dark:text-gray-300">
             <Link to="/" className={isActive('/')}>Home</Link>
             <Link to="/about" className={isActive('/about')}>About</Link>
             <Link to="/contact" className={isActive('/contact')}>Contact</Link>
-            {user && <Link to="/admin" className={isActive('/admin')}>Dashboard</Link>}
-            {user?.role === 'admin' && <Link to="/admin/users" className={isActive('/admin/users')}>Users</Link>}
+            {user && (
+              <>
+                <div className="w-px h-4 bg-gray-300 mx-2"></div>
+                <Link to="/admin" className={isActive('/admin')}>Dashboard</Link>
+                <Link to="/admin/messages" className={isActive('/admin/messages')}>Messages</Link>
+                <Link to="/admin/ads" className={isActive('/admin/ads')}>Ads</Link>
+                {user.role === 'admin' && <Link to="/admin/users" className={isActive('/admin/users')}>Users</Link>}
+              </>
+            )}
           </nav>
 
           {/* Actions */}
@@ -71,8 +94,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <Link to="/" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Home</Link>
               <Link to="/about" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>About</Link>
               <Link to="/contact" className="py-2 hover:text-brand-red dark:text-gray-300" onClick={() => setIsMenuOpen(false)}>Contact</Link>
-              {user && <Link to="/admin" className="py-2 hover:text-brand-red font-bold text-brand-red" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>}
-              {user?.role === 'admin' && <Link to="/admin/users" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Manage Users</Link>}
+              {user && (
+                <>
+                  <Link to="/admin" className="py-2 hover:text-brand-red font-bold text-brand-red" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
+                  <Link to="/admin/messages" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Messages</Link>
+                  <Link to="/admin/ads" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Manage Ads</Link>
+                  {user.role === 'admin' && <Link to="/admin/users" className="py-2 hover:text-brand-red font-bold" onClick={() => setIsMenuOpen(false)}>Manage Users</Link>}
+                </>
+              )}
               <div className="border-t pt-4 flex flex-col gap-3">
                  <button onClick={() => { toggleTheme(); setIsMenuOpen(false); }} className="text-sm dark:text-gray-300">Toggle Theme</button>
                  {user ? <button onClick={logout} className="text-brand-red font-bold">Logout</button> : <Link to="/login" onClick={() => setIsMenuOpen(false)} className="font-bold dark:text-white">Sign In</Link>}
