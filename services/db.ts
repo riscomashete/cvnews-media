@@ -14,9 +14,6 @@ import { Article, ContactMessage, Advertisement } from '../types';
 
 const COLLECTION_NAME = 'articles';
 
-// Fallback for demo mode if Firebase fails
-const isLocalStorageFallback = false; 
-
 export const db = {
   getArticles: async (): Promise<Article[]> => {
     try {
@@ -31,6 +28,9 @@ export const db = {
       // Broadcast error for global banner
       if (error.code === 'permission-denied') {
         window.dispatchEvent(new Event('firestore-permission-error'));
+        // Return local articles if offline
+        const local = localStorage.getItem('local_articles');
+        return local ? JSON.parse(local) : [];
       }
       return [];
     }
@@ -38,6 +38,12 @@ export const db = {
 
   getArticleById: async (id: string): Promise<Article | undefined> => {
     try {
+      // Check local storage first if it looks like a local ID
+      if (id.startsWith('local_')) {
+        const localArticles = JSON.parse(localStorage.getItem('local_articles') || '[]');
+        return localArticles.find((a: Article) => a.id === id);
+      }
+
       const docRef = doc(firestore, COLLECTION_NAME, id);
       const docSnap = await getDoc(docRef);
       
@@ -85,16 +91,31 @@ export const db = {
 
   updateArticle: async (id: string, updates: Partial<Article>): Promise<void> => {
     try {
+      if (id.startsWith('local_')) {
+        const localArticles = JSON.parse(localStorage.getItem('local_articles') || '[]');
+        const updatedArticles = localArticles.map((a: Article) => a.id === id ? { ...a, ...updates } : a);
+        localStorage.setItem('local_articles', JSON.stringify(updatedArticles));
+        return;
+      }
       const docRef = doc(firestore, COLLECTION_NAME, id);
       await updateDoc(docRef, updates);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating article:", error);
+      if (error.code === 'permission-denied') {
+         alert("Cannot update cloud article due to permissions. Check Console.");
+      }
       throw error;
     }
   },
 
   deleteArticle: async (id: string): Promise<void> => {
     try {
+      if (id.startsWith('local_')) {
+        const localArticles = JSON.parse(localStorage.getItem('local_articles') || '[]');
+        const filtered = localArticles.filter((a: Article) => a.id !== id);
+        localStorage.setItem('local_articles', JSON.stringify(filtered));
+        return;
+      }
       await deleteDoc(doc(firestore, COLLECTION_NAME, id));
     } catch (error) {
       console.error("Error deleting article:", error);
@@ -157,8 +178,12 @@ export const db = {
       const q = query(collection(firestore, 'advertisements'), orderBy('createdAt', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Advertisement));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching ads:", error);
+      if (error.code === 'permission-denied') {
+        const local = localStorage.getItem('local_ads');
+        return local ? JSON.parse(local) : [];
+      }
       return [];
     }
   },
@@ -169,26 +194,53 @@ export const db = {
         ...ad,
         createdAt: Date.now()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating ad:", error);
+      if (error.code === 'permission-denied') {
+        window.dispatchEvent(new Event('firestore-permission-error'));
+        const localAds = JSON.parse(localStorage.getItem('local_ads') || '[]');
+        const newAd = { id: 'local_ad_' + Date.now(), ...ad, createdAt: Date.now() };
+        localAds.unshift(newAd);
+        localStorage.setItem('local_ads', JSON.stringify(localAds));
+        alert("Saved Ad to Local Storage (Offline Mode) due to permission error.");
+        return;
+      }
       throw error;
     }
   },
 
   deleteAd: async (id: string): Promise<void> => {
     try {
+      if (id.startsWith('local_')) {
+        const localAds = JSON.parse(localStorage.getItem('local_ads') || '[]');
+        const filtered = localAds.filter((a: Advertisement) => a.id !== id);
+        localStorage.setItem('local_ads', JSON.stringify(filtered));
+        return;
+      }
       await deleteDoc(doc(firestore, 'advertisements', id));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting ad:", error);
+      if (error.code === 'permission-denied') {
+        alert("Permission denied to delete cloud ad.");
+      }
       throw error;
     }
   },
 
   toggleAdStatus: async (id: string, currentStatus: boolean): Promise<void> => {
     try {
+      if (id.startsWith('local_')) {
+        const localAds = JSON.parse(localStorage.getItem('local_ads') || '[]');
+        const updated = localAds.map((a: Advertisement) => a.id === id ? { ...a, active: !currentStatus } : a);
+        localStorage.setItem('local_ads', JSON.stringify(updated));
+        return;
+      }
       await updateDoc(doc(firestore, 'advertisements', id), { active: !currentStatus });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error toggling ad status:", error);
+      if (error.code === 'permission-denied') {
+         alert("Permission denied to update cloud ad.");
+      }
       throw error;
     }
   }
