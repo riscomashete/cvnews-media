@@ -1,6 +1,17 @@
 import { GoogleGenAI, Chat, Type } from "@google/genai";
 
-const apiKey = process.env.API_KEY || ''; 
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.API_KEY || '';
+    }
+  } catch (e) {
+    // Ignore errors where process is not defined
+  }
+  return '';
+};
+
+const apiKey = getApiKey();
 // NOTE: in a real app, never expose keys on client side without proxies. 
 // This is structured to use the env var if available.
 

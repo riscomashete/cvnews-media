@@ -26,6 +26,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Ticker State
   const [tickerMsg, setTickerMsg] = useState('');
 
+  // Date & Time State
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isActive = (path: string) => location.pathname === path ? 'text-brand-red font-bold' : 'hover:text-brand-red';
 
@@ -36,6 +39,30 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     window.addEventListener('firestore-permission-error', handleError);
     return () => window.removeEventListener('firestore-permission-error', handleError);
   }, []);
+
+  // Clock Timer
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentDateTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Date Formatting based on User Locale
+  const dateStr = currentDateTime.toLocaleDateString(undefined, { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  const timeStr = currentDateTime.toLocaleTimeString(undefined, { 
+    hour: '2-digit', 
+    minute: '2-digit'
+  });
+
+  // Get User Location from Timezone
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Format "Africa/Windhoek" to "Windhoek"
+  const locationName = timeZone.includes('/') ? timeZone.split('/')[1].replace(/_/g, ' ') : timeZone;
 
   // Fetch latest announcement for Top Ticker (Public Only)
   useEffect(() => {
@@ -218,8 +245,18 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <span className="text-xl font-bold tracking-wide dark:text-white hidden sm:block">NEWS MEDIA</span>
           </Link>
 
+          {/* Date/Time Widget (New) */}
+          <div className="hidden lg:flex flex-col ml-6 pl-6 border-l border-gray-200 dark:border-gray-700 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide leading-tight">
+             <span className="text-gray-900 dark:text-gray-200">{dateStr}</span>
+             <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-brand-red">{timeStr}</span>
+                <span className="text-gray-300 dark:text-gray-600">•</span>
+                <span>{locationName}</span>
+             </div>
+          </div>
+
           {/* Desktop Nav (Public Links) */}
-          <nav className="hidden md:flex items-center gap-6 text-sm uppercase tracking-wider font-medium text-gray-700 dark:text-gray-300">
+          <nav className="hidden md:flex items-center gap-6 text-sm uppercase tracking-wider font-medium text-gray-700 dark:text-gray-300 ml-auto mr-6">
             <Link to="/" className={isActive('/')}>Home</Link>
             <Link to="/directory" className={isActive('/directory')}>Directory</Link>
             <Link to="/about" className={isActive('/about')}>About</Link>
@@ -286,6 +323,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {/* Mobile Nav */}
         {isMenuOpen && (
           <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+             {/* Date Time Mobile */}
+             <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 text-center">
+                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">{dateStr}</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                  {timeStr} <span className="text-brand-red mx-1">•</span> {locationName}
+                </p>
+             </div>
+
             {/* Mobile Search */}
             <form onSubmit={handleSearch} className="p-4 border-b dark:border-gray-800">
               <div className="relative">
