@@ -9,7 +9,8 @@ import Contact from './pages/Contact';
 import Login from './pages/Login';
 import Search from './pages/Search'; 
 import Directory from './pages/Directory';
-import CategoryPage from './pages/CategoryPage'; // New
+import CategoryPage from './pages/CategoryPage'; 
+import AuthorProfile from './pages/AuthorProfile'; // New
 
 import Dashboard from './pages/admin/Dashboard';
 import ArticleEditor from './pages/admin/ArticleEditor';
@@ -17,8 +18,9 @@ import UserManagement from './pages/admin/UserManagement';
 import AdsManager from './pages/admin/AdsManager';
 import Messages from './pages/admin/Messages';
 import DirectoryManager from './pages/admin/DirectoryManager';
-import EventsManager from './pages/admin/EventsManager'; // New
-import CommentsManager from './pages/admin/CommentsManager'; // New
+import EventsManager from './pages/admin/EventsManager';
+import CommentsManager from './pages/admin/CommentsManager';
+import Profile from './pages/admin/Profile';
 
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -41,6 +43,7 @@ const App: React.FC = () => {
               <Route path="/" element={<Home />} />
               <Route path="/article/:id" element={<Article />} />
               <Route path="/category/:categoryName" element={<CategoryPage />} />
+              <Route path="/author/:id" element={<AuthorProfile />} />
               <Route path="/search" element={<Search />} />
               <Route path="/directory" element={<Directory />} />
               <Route path="/about" element={<About />} />
@@ -51,6 +54,11 @@ const App: React.FC = () => {
               <Route path="/admin" element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/profile" element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               } />
               <Route path="/admin/users" element={

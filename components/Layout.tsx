@@ -153,15 +153,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
           {/* Sidebar Footer */}
           <div className="p-4 bg-gray-950 border-t border-gray-800 shrink-0">
-             <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-full bg-brand-red flex items-center justify-center text-white font-bold shadow-sm">
-                  {user.name.charAt(0)}
+             <Link to="/admin/profile" className="flex items-center gap-3 mb-4 group cursor-pointer hover:bg-gray-800 p-2 -mx-2 rounded transition">
+                <div className="w-9 h-9 rounded-full bg-brand-red flex items-center justify-center text-white font-bold shadow-sm overflow-hidden border border-gray-700">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
                 </div>
                 <div className="overflow-hidden">
-                   <p className="text-sm font-bold text-white truncate">{user.name}</p>
-                   <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">{user.role}</p>
+                   <p className="text-sm font-bold text-white truncate group-hover:text-brand-red transition">{user.name}</p>
+                   <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Edit Profile</p>
                 </div>
-             </div>
+             </Link>
              <div className="flex gap-2 mb-2">
                 <button 
                    onClick={toggleTheme}

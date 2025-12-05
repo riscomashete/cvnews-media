@@ -5,6 +5,7 @@ export interface Article {
   excerpt: string;
   content: string;
   author: string;
+  authorId?: string; // New field to link to user profile
   category: string;
   imageUrl: string;
   createdAt: number;
@@ -20,6 +21,9 @@ export interface User {
   email: string;
   name: string;
   role: 'admin' | 'editor' | 'journalist';
+  jobTitle?: string; // Custom title for display (e.g. "Senior Sports Editor")
+  avatarUrl?: string;
+  bio?: string;
 }
 
 export interface ContactMessage {

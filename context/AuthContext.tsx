@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { auth, db } from '../services/firebase';
@@ -15,6 +16,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   loading: boolean;
   isAdminOrEditor: boolean;
+  refreshUser: () => Promise<void>; // Added function
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,50 +24,53 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+
+  const fetchUserData = async (fUser: FirebaseUser) => {
+    try {
+      // Fetch additional user details (Role, Name, Avatar, Bio) from Firestore
+      const userDocRef = doc(db, 'users', fUser.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      const isSuperAdminEmail = fUser.email?.toLowerCase().includes('admin');
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUser({
+          uid: fUser.uid,
+          email: fUser.email || '',
+          name: userData.name || 'Anonymous',
+          role: isSuperAdminEmail ? 'admin' : (userData.role || 'journalist'),
+          jobTitle: userData.jobTitle, // Added missing field
+          avatarUrl: userData.avatarUrl,
+          bio: userData.bio
+        });
+      } else {
+        // Fallback for bootstrap
+        setUser({
+          uid: fUser.uid,
+          email: fUser.email || '',
+          name: 'System Admin',
+          role: 'admin' 
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      const isSuperAdminEmail = fUser.email?.toLowerCase().includes('admin');
+      setUser({
+        uid: fUser.uid,
+        email: fUser.email || '',
+        name: 'User (Offline)',
+        role: isSuperAdminEmail ? 'admin' : 'journalist'
+      });
+    }
+  };
 
   useEffect(() => {
-    // Listen for Firebase Auth state changes
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        try {
-          // Fetch additional user details (Role, Name) from Firestore
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
-
-          // Super Admin Logic:
-          // If the email contains "admin", we force the role to 'admin'.
-          // This allows you to "Bootstrap" the system even if the DB record is wrong.
-          const isSuperAdminEmail = firebaseUser.email?.toLowerCase().includes('admin');
-
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              name: userData.name || 'Anonymous',
-              role: isSuperAdminEmail ? 'admin' : (userData.role || 'journalist')
-            });
-          } else {
-            // Fallback: If auth exists but firestore doc doesn't (e.g. manually created in console),
-            // we default to 'admin' so you can set up the system.
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              name: 'System Admin',
-              role: 'admin' // Default to admin for bootstrapping
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-          // Even on error, if it looks like an admin email, let them in.
-          const isSuperAdminEmail = firebaseUser.email?.toLowerCase().includes('admin');
-          setUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            name: 'User (Offline)',
-            role: isSuperAdminEmail ? 'admin' : 'journalist'
-          });
-        }
+    const unsubscribe = onAuthStateChanged(auth, async (fUser: FirebaseUser | null) => {
+      setFirebaseUser(fUser);
+      if (fUser) {
+        await fetchUserData(fUser);
       } else {
         setUser(null);
       }
@@ -84,10 +89,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    if (firebaseUser) {
+      await fetchUserData(firebaseUser);
+    }
+  };
+
   const isAdminOrEditor = user?.role === 'admin' || user?.role === 'editor';
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isAdminOrEditor }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, isAdminOrEditor, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

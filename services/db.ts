@@ -11,10 +11,11 @@ import {
   orderBy,
   where,
   limit,
-  increment
+  increment,
+  setDoc
 } from 'firebase/firestore';
 import { db as firestore } from './firebase'; 
-import { Article, ContactMessage, Advertisement, Business, AppEvent, Comment } from '../types';
+import { Article, ContactMessage, Advertisement, Business, AppEvent, Comment, User } from '../types';
 
 const COLLECTION_NAME = 'articles';
 
@@ -40,17 +41,55 @@ export const db = {
 
   getArticlesByCategory: async (category: string): Promise<Article[]> => {
     try {
+      // FIX: Query without orderBy to avoid composite index requirement
       const q = query(
         collection(firestore, COLLECTION_NAME), 
-        where('category', '==', category),
-        orderBy('createdAt', 'desc')
+        where('category', '==', category)
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
+      const articles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
+      // Sort client-side
+      return articles.sort((a, b) => b.createdAt - a.createdAt);
     } catch (error: any) {
       console.warn("Index might be missing, falling back to client filter", error);
       const all = await db.getArticles();
       return all.filter(a => a.category === category);
+    }
+  },
+
+  getArticlesByAuthor: async (authorName: string): Promise<Article[]> => {
+    try {
+      // FIX: Query without orderBy to avoid composite index requirement
+      const q = query(
+        collection(firestore, COLLECTION_NAME),
+        where('author', '==', authorName)
+      );
+      const snapshot = await getDocs(q);
+      const articles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
+      // Sort client-side
+      return articles.sort((a, b) => b.createdAt - a.createdAt);
+    } catch (error) {
+      console.error("Error fetching author articles:", error);
+      return [];
+    }
+  },
+
+  getArticlesByAuthorId: async (authorId: string): Promise<Article[]> => {
+    try {
+      // FIX: Query without orderBy to avoid composite index requirement
+      const q = query(
+        collection(firestore, COLLECTION_NAME),
+        where('authorId', '==', authorId)
+      );
+      const snapshot = await getDocs(q);
+      const articles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Article));
+      // Sort client-side
+      return articles.sort((a, b) => b.createdAt - a.createdAt);
+    } catch (error: any) {
+      console.warn("Error fetching by AuthorID fallback", error);
+      // Fallback: Fetch all and filter if anything else goes wrong
+      const all = await db.getArticles();
+      return all.filter(a => a.authorId === authorId);
     }
   },
 
@@ -415,6 +454,64 @@ export const db = {
     } catch (error: any) {
       console.error("Error deleting comment:", error);
       throw new Error(error.message || "Database delete failed");
+    }
+  },
+
+  updateUser: async (uid: string, data: Partial<User>): Promise<void> => {
+    try {
+      const docRef = doc(firestore, 'users', uid);
+      await setDoc(docRef, data, { merge: true });
+    } catch (error) {
+      console.error("Error updating user:", error);
+      throw error;
+    }
+  },
+
+  getPublicUserProfile: async (uid: string): Promise<User | null> => {
+    try {
+      const docRef = doc(firestore, 'users', uid);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        // Return only safe public fields
+        return {
+          uid: snap.id,
+          name: data.name,
+          role: data.role,
+          jobTitle: data.jobTitle,
+          avatarUrl: data.avatarUrl,
+          bio: data.bio,
+          email: data.email 
+        } as User;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
+  },
+
+  getStaffProfileByName: async (name: string): Promise<User | null> => {
+    try {
+      const q = query(collection(firestore, 'users'), where('name', '==', name), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const docSnap = snap.docs[0];
+        const data = docSnap.data();
+        return {
+          uid: docSnap.id,
+          name: data.name,
+          role: data.role,
+          jobTitle: data.jobTitle,
+          avatarUrl: data.avatarUrl,
+          bio: data.bio,
+          email: data.email
+        } as User;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching staff by name:", error);
+      return null;
     }
   }
 };

@@ -36,6 +36,7 @@ const ArticleEditor: React.FC = () => {
     excerpt: '',
     content: '',
     author: '',
+    authorId: '', // New field
     category: 'News',
     imageUrl: 'https://picsum.photos/seed/new/800/600',
     published: false,
@@ -47,7 +48,7 @@ const ArticleEditor: React.FC = () => {
   useEffect(() => {
     // Set default author name for new articles
     if (!id && user) {
-      setFormData(prev => ({ ...prev, author: user.name }));
+      setFormData(prev => ({ ...prev, author: user.name, authorId: user.uid }));
     }
 
     if (id) {
@@ -61,6 +62,7 @@ const ArticleEditor: React.FC = () => {
               excerpt: article.excerpt,
               content: article.content,
               author: article.author,
+              authorId: article.authorId || '',
               category: article.category,
               imageUrl: article.imageUrl,
               published: article.published,
@@ -124,6 +126,11 @@ const ArticleEditor: React.FC = () => {
     // Security check: If user isn't admin/editor, enforce published=false for new articles
     let dataToSave = { ...formData };
     
+    // Ensure authorId is set if missing (for existing articles being edited by current user, if allowed, or new ones)
+    if (!dataToSave.authorId && user) {
+        dataToSave.authorId = user.uid;
+    }
+
     if (!isAdminOrEditor) {
       if (!id) {
         dataToSave.published = false;
@@ -447,6 +454,7 @@ const ArticleEditor: React.FC = () => {
                  value={formData.author}
                  onChange={e => setFormData({...formData, author: e.target.value})}
                />
+               <input type="hidden" value={formData.authorId} />
             </div>
 
             <div className="mb-4">

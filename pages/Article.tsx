@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { db } from '../services/db';
-import { Article as ArticleType } from '../types';
+import { Article as ArticleType, User } from '../types';
 import ArticleCard from '../components/ArticleCard';
 import CommentSection from '../components/CommentSection';
 
@@ -10,30 +10,47 @@ const Article: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [article, setArticle] = useState<ArticleType | null>(null);
   const [related, setRelated] = useState<ArticleType[]>([]);
+  const [authorProfile, setAuthorProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   
-  // Use a ref to prevent double counting in StrictMode
-  const viewedRef = useRef(false);
+  // Use a ref to ensure we only increment once per session/mount
+  const processViewRef = useRef(false);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setArticle(null);
       setRelated([]);
-      viewedRef.current = false;
+      setAuthorProfile(null);
+      processViewRef.current = false;
       cancelSpeech(); // Stop speech if navigating
       
       if (id) {
-        // Increment View Count
-        if (!viewedRef.current) {
+        // Unique View Counting using LocalStorage
+        const viewedKey = `viewed_article_${id}`;
+        const hasViewed = localStorage.getItem(viewedKey);
+
+        if (!hasViewed && !processViewRef.current) {
           db.incrementView(id);
-          viewedRef.current = true;
+          localStorage.setItem(viewedKey, 'true');
+          processViewRef.current = true;
         }
 
         const data = await db.getArticleById(id);
         if (data) {
           setArticle(data);
+          
+          // Fetch author profile
+          if (data.authorId) {
+             const profile = await db.getPublicUserProfile(data.authorId);
+             if (profile) setAuthorProfile(profile);
+          } else {
+             // Fallback to name search for legacy articles
+             const profile = await db.getStaffProfileByName(data.author);
+             if (profile) setAuthorProfile(profile);
+          }
+
           // Fetch related articles once the main article is loaded
           const relatedData = await db.getRelatedArticles(data.id, data.category);
           setRelated(relatedData);
@@ -142,14 +159,24 @@ const Article: React.FC = () => {
           </h1>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-8 mb-8 gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-xl">
-                👤
+            {/* Author Profile Link */}
+            <Link to={authorProfile ? `/author/${authorProfile.uid}` : '#'} className={`flex items-center gap-4 group ${!authorProfile ? 'cursor-default' : ''}`}>
+              <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-xl overflow-hidden border-2 border-transparent group-hover:border-brand-red transition">
+                {authorProfile?.avatarUrl ? (
+                   <img src={authorProfile.avatarUrl} alt={authorProfile.name} className="w-full h-full object-cover" />
+                ) : (
+                   <span>👤</span>
+                )}
               </div>
               <div>
-                <p className="font-bold text-gray-900 dark:text-white text-sm">By {article.author}</p>
+                <p className="font-bold text-gray-900 dark:text-white text-sm group-hover:text-brand-red transition">
+                  By {article.author}
+                </p>
                 <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                   <span>CVNEWS MEDIA CC Contributor</span>
+                   {/* Display custom Job Title or fallback to Role */}
+                   <span className="font-medium">
+                     {authorProfile?.jobTitle || (authorProfile?.role === 'admin' ? 'Editor-in-Chief' : 'Journalist')}
+                   </span>
                    <span>•</span>
                    <span className="flex items-center gap-1">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -157,7 +184,7 @@ const Article: React.FC = () => {
                    </span>
                 </div>
               </div>
-            </div>
+            </Link>
 
             <div className="flex items-center gap-4">
                {/* TTS Button */}
@@ -210,7 +237,7 @@ const Article: React.FC = () => {
               {/* Dynamic Title */}
               {related[0].category === article.category ? `More in ${article.category}` : 'Recommended Stories'}
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {related.map(r => (
                  <ArticleCard key={r.id} article={r} />
               ))}
